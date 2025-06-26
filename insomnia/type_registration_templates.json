@@ -1,0 +1,28 @@
+{
+    "list_type_registrations": {
+        "method": "GET",
+        "url": "http://localhost:8000/type-registrations/"
+    },
+    "create_type_registration": {
+        "method": "POST",
+        "url": "http://localhost:8000/type-registrations/",
+        "body": {
+            "name": "Cadastro Básico",
+            "description": "Cadastro inicial padrão",
+            "status": true
+        }
+    },
+    "update_type_registration": {
+        "method": "PUT",
+        "url": "http://localhost:8000/type-registrations/{id}",
+        "body": {
+            "name": "Cadastro Avançado",
+            "description": "Cadastro com campos adicionais",
+            "status": false
+        }
+    },
+    "delete_type_registration": {
+        "method": "DELETE",
+        "url": "http://localhost:8000/type-registrations/{id}"
+    }
+}

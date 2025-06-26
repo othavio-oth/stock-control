@@ -1,0 +1,30 @@
+{
+    "list_cost_taxations": {
+        "method": "GET",
+        "url": "http://localhost:8000/cost-taxations/"
+    },
+    "create_cost_taxation": {
+        "method": "POST",
+        "url": "http://localhost:8000/cost-taxations/",
+        "body": {
+            "product_id": 1,
+            "taxation": 0.1800,
+            "logistic": 0.0500,
+            "mld_taxation": 0.0250
+        }
+    },
+    "update_cost_taxation": {
+        "method": "PUT",
+        "url": "http://localhost:8000/cost-taxations/{id}",
+        "body": {
+            "product_id": 1,
+            "taxation": 0.2000,
+            "logistic": 0.0600,
+            "mld_taxation": 0.0300
+        }
+    },
+    "delete_cost_taxation": {
+        "method": "DELETE",
+        "url": "http://localhost:8000/cost-taxations/{id}"
+    }
+}

@@ -1,0 +1,40 @@
+services:
+  strategy_db_inventory:
+    image: postgres:15
+    container_name: strategy_db_inventory
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    ports:
+      - "5433:5432"
+    networks:
+      - rede_strategy_inventory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  strategy_backend_inventory:
+    build: .
+    container_name: strategy_backend_inventory
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    networks:
+      - rede_strategy_inventory
+    depends_on:
+      - strategy_db_inventory
+    volumes:
+      - ./app:/app/app 
+      - .:/app
+
+networks:
+  rede_strategy_inventory:
+
+volumes:
+  postgres_data:

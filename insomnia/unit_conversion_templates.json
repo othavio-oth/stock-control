@@ -1,0 +1,30 @@
+{
+    "list_conversions": {
+        "method": "GET",
+        "url": "http://localhost:8000/conversions/"
+    },
+    "create_conversion": {
+        "method": "POST",
+        "url": "http://localhost:8000/conversions/",
+        "body": {
+            "unit_from": 1,
+            "unit_to": 2,
+            "conversion": 0.001,
+            "status": true
+        }
+    },
+    "update_conversion": {
+        "method": "PUT",
+        "url": "http://localhost:8000/conversions/{id}",
+        "body": {
+            "unit_from": 1,
+            "unit_to": 2,
+            "conversion": 0.002,
+            "status": true
+        }
+    },
+    "delete_conversion": {
+        "method": "DELETE",
+        "url": "http://localhost:8000/conversions/{id}"
+    }
+}

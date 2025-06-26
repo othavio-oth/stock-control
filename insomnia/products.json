@@ -1,0 +1,46 @@
+{
+    "list_products": {
+        "method": "GET",
+        "url": "http://localhost:8000/products/"
+    },
+    "create_product": {
+        "method": "POST",
+        "url": "http://localhost:8000/products/",
+        "body": {
+            "custom_id": 1001,
+            "description": "Produto Exemplo",
+            "status": true,
+            "type_registration_id": 1,
+            "group_id": 1,
+            "sub_group_id": 1,
+            "date_cost": "2025-01-01",
+            "cost_inside": 50.0,
+            "conversion_id": null,
+            "cost_output": 75.0,
+            "un_inside_id": 1,
+            "un_output_stock_id": 2
+        }
+    },
+    "update_product": {
+        "method": "PUT",
+        "url": "http://localhost:8000/products/{id}",
+        "body": {
+            "custom_id": 1002,
+            "description": "Produto Atualizado",
+            "status": true,
+            "type_registration_id": 1,
+            "group_id": 1,
+            "sub_group_id": 1,
+            "date_cost": "2025-01-01",
+            "cost_inside": 60.0,
+            "conversion_id": 1,
+            "cost_output": 90.0,
+            "un_inside_id": 2,
+            "un_output_stock_id": 3
+        }
+    },
+    "delete_product": {
+        "method": "DELETE",
+        "url": "http://localhost:8000/products/{id}"
+    }
+}

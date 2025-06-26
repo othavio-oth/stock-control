@@ -1,0 +1,28 @@
+{
+    "list_units": {
+        "method": "GET",
+        "url": "http://localhost:8000/units/"
+    },
+    "create_unit": {
+        "method": "POST",
+        "url": "http://localhost:8000/units/",
+        "body": {
+            "name": "unit Teste",
+            "description": "Descrição de unit de medida",
+            "status": true
+        }
+    },
+    "update_unit": {
+        "method": "PUT",
+        "url": "http://localhost:8000/units/{id}",
+        "body": {
+            "name": "unit Atualizada",
+            "description": "Descrição atualizada",
+            "status": false
+        }
+    },
+    "delete_unit": {
+        "method": "DELETE",
+        "url": "http://localhost:8000/units/{id}"
+    }
+}

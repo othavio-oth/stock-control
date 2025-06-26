@@ -1,0 +1,26 @@
+{
+    "list_cost_centers": {
+        "method": "GET",
+        "url": "http://localhost:8000/cost_centers/"
+    },
+    "create_cost_center": {
+        "method": "POST",
+        "url": "http://localhost:8000/cost_centers/",
+        "body": {
+            "nome": "Centro de Custo A",
+            "descricao": "Descrição do Centro de Custo A"
+        }
+    },
+    "update_cost_center": {
+        "method": "PUT",
+        "url": "http://localhost:8000/cost_centers/{id}",
+        "body": {
+            "nome": "Centro de Custo B",
+            "descricao": "Descrição Atualizada"
+        }
+    },
+    "delete_cost_center": {
+        "method": "DELETE",
+        "url": "http://localhost:8000/cost_centers/{id}"
+    }
+}

@@ -1,0 +1,28 @@
+{
+    "list_groups": {
+        "method": "GET",
+        "url": "http://localhost:8000/groups/"
+    },
+    "create_grupo": {
+        "method": "POST",
+        "url": "http://localhost:8000/groups/",
+        "body": {
+            "name": "Grupo Teste",
+            "description": "Descrição de exemplo",
+            "status": true
+        }
+    },
+    "update_grupo": {
+        "method": "PUT",
+        "url": "http://localhost:8000/groups/{id}",
+        "body": {
+            "name": "Grupo Atualizado",
+            "description": "Descrição atualizada",
+            "status": false
+        }
+    },
+    "delete_grupo": {
+        "method": "DELETE",
+        "url": "http://localhost:8000/groups/{id}"
+    }
+}
