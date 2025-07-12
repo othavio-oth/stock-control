@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from app.models.user import User
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer,  HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional, TypeVar
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
-
+security = HTTPBearer()
 DATABASE_URL = Config.DATABASE_URL
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -83,3 +83,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         return {"id": user_id}
     except JWTError:
         raise credentials_exception
+    
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    payload = decode_jwt(token)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido ou expirado",
+        )
+    return payload
