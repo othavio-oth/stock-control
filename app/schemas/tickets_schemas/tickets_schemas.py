@@ -6,8 +6,7 @@ class TicketBase(BaseModel):
     name: str
     description: Optional[str] = None
     status: str
-    init: Optional[date] = None
-    end: Optional[date] = None
+    order_date: Optional[date] = None
     cost_center_id: int
     created_by: int
 
@@ -18,8 +17,7 @@ class TicketCreate(TicketBase):
     name: str
     description: Optional[str] = None
     status: str
-    init: Optional[date] = None
-    end: Optional[date] = None
+    order_date: Optional[date] = None
     cost_center_id: int
 
 class TicketUpdate(TicketBase):
@@ -34,8 +32,10 @@ class TicketProductList(TicketResponse):
 class TicketProductBase(BaseModel):
     ticket_id: int
     product_id: int
-    quantity: float
-    correction_factor: float
+    quantity_ordered: float
+    quantity_sold: Optional[float] = 0
+    sold_until: Optional[date] = None
+    # correction_factor: float
 
 class TicketProductCreate(TicketProductBase):
     pass

@@ -16,6 +16,8 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
     date_joined = Column(DateTime, default=func.now())
     roles = relationship("UserRole", back_populates="user")
+    seller_profile = relationship("Seller", back_populates="user", uselist=False)
+
 
     def __repr__(self):
         return (

@@ -28,3 +28,7 @@ def delete_cost_center(db, center_id):
         db.delete(center)
         db.commit()
     return center
+
+def get_tickets_by_cost_center(db, center_id):
+    return db.query(Ticket).filter(Ticket.cost_center_id == center_id).all()
+

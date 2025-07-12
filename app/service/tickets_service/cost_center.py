@@ -1,5 +1,6 @@
-from app.repository.tickets.cost_center_repository import create_cost_center, update_cost_center, get_all_cost_centers, get_cost_center_by_id, delete_cost_center
+from app.repository.tickets.cost_center_repository import create_cost_center, update_cost_center, get_all_cost_centers, get_cost_center_by_id, delete_cost_center, get_tickets_by_cost_center
 from app.models.tickets import CostCenter
+from app.repository.tickets.tickets_repository import Ticket
 
 class CostCenterService:
     @staticmethod
@@ -24,3 +25,13 @@ class CostCenterService:
         if not get_cost_center_by_id(db, center_id):
             raise ValueError("Centro de custo não encontrado.")
         return delete_cost_center(db, center_id)
+    
+    @staticmethod
+    def get_tickets_by_cost_center(db, center_id):
+        return get_tickets_by_cost_center(db, center_id)
+    
+    def get_cost_center_by_id(db, center_id):
+        center = get_cost_center_by_id(db, center_id)
+        if not center:
+            raise ValueError("Centro de custo não encontrado.")
+        return center

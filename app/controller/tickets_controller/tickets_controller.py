@@ -25,3 +25,6 @@ def get_ticket_products_controller(db):
 
 def remove_product_from_ticket_controller(ticket_product_id, db):
     return TicketService.remove_product(db, ticket_product_id)
+
+def get_tickets_by_cost_center_controller(cost_center_id, db):
+    return TicketService.get_tickets_by_cost_center(db, cost_center_id)

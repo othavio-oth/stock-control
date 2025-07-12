@@ -1,8 +1,8 @@
-"""alter table tickets products
+"""add Seller
 
-Revision ID: f36928a9b7fc
-Revises: 305318838e78
-Create Date: 2025-04-19 12:25:27.011567
+Revision ID: b1816370e0e8
+Revises: e48b78d1421b
+Create Date: 2025-07-12 14:49:25.675742
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f36928a9b7fc'
-down_revision: Union[str, None] = '305318838e78'
+revision: str = 'b1816370e0e8'
+down_revision: Union[str, None] = 'e48b78d1421b'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

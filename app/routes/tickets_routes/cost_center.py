@@ -1,25 +1,42 @@
+from app.controller.tickets_controller.cost_center_controller import get_cost_center_by_id, get_tickets_by_cost_center
 from . import *
 
 router = APIRouter()
 
-@router.get("/cost_centers/", response_model=List[CostCenterResponse])
+@router.get("/cost_centers/", response_model=List[CostCenterResponse], tags=["Cost Centers"])
 def get_cost_centers(db: Session = Depends(get_db)):
     return list_cost_centers(db)
 
-@router.post("/cost_centers/", response_model=CostCenterResponse)
+@router.post("/cost_centers/", response_model=CostCenterResponse, tags=["Cost Centers"] )
 def create_new_cost_center(center_data: CostCenterCreate, db: Session = Depends(get_db)):
     try:
         return create_cost_center(center_data, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/cost_centers/{center_id}", response_model=CostCenterResponse)
+@router.put("/cost_centers/{center_id}", response_model=CostCenterResponse, tags=["Cost Centers"])
 def update_cost_center(center_id: int, center_data: CostCenterUpdate, db: Session = Depends(get_db)):
     try:
         return edit_cost_center(center_id, center_data, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.delete("/cost_centers/{center_id}")
+@router.delete("/cost_centers/{center_id}", tags=["Cost Centers"])
 def remove_cost_center(center_id: int, db: Session = Depends(get_db)):
     return delete_cost_center(center_id, db)
+
+
+@router.get("/cost_centers/{center_id}/tickets/", response_model=List[TicketResponse], tags=["Cost Centers"])
+def get_all_tickets_by_cost_center(center_id: int, db: Session = Depends(get_db)):
+    try:
+        return get_tickets_by_cost_center(center_id, db)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+
+@router.get("/cost_centers/{center_id}", response_model=CostCenterResponse, tags=["Cost Centers"])
+def get_cost_center_by_center_id(center_id: int, db: Session = Depends(get_db)):
+    try:
+        return get_cost_center_by_id(center_id, db)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

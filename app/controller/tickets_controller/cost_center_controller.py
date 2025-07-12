@@ -11,3 +11,9 @@ def edit_cost_center(center_id, center_data, db):
 
 def delete_cost_center(center_id, db):
     return CostCenterService.remove_cost_center(db, center_id)
+
+def get_tickets_by_cost_center(center_id, db):
+    return CostCenterService.get_tickets_by_cost_center(db, center_id)
+
+def get_cost_center_by_id(center_id, db):
+    return CostCenterService.get_cost_center_by_id(db, center_id)
