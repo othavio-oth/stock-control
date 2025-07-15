@@ -1,5 +1,5 @@
 from app.repository.tickets.cost_center_repository import create_cost_center, update_cost_center, get_all_cost_centers, get_cost_center_by_id, delete_cost_center, get_tickets_by_cost_center
-from app.models.tickets import CostCenter
+from app.models.tickets import CostCenter, TicketProduct
 from app.repository.tickets.tickets_repository import Ticket
 
 class CostCenterService:
@@ -29,6 +29,13 @@ class CostCenterService:
     @staticmethod
     def get_tickets_by_cost_center(db, center_id):
         return get_tickets_by_cost_center(db, center_id)
+    
+    @staticmethod
+    def get_ticket_products_by_cost_center(db, cost_center_id):
+        tickets = get_tickets_by_cost_center(db, cost_center_id)
+        ticket_ids = [t.id for t in tickets]
+
+        return db.query(TicketProduct).filter(TicketProduct.ticket_id.in_(ticket_ids)).all()
     
     def get_cost_center_by_id(db, center_id):
         center = get_cost_center_by_id(db, center_id)

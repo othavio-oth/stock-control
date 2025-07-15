@@ -36,6 +36,7 @@ class TicketProduct(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity_ordered = Column(Integer, nullable=False)
     quantity_sold = Column(Integer, default=0)
+    unit_price = Column(Numeric(10, 2))
     sold_until = Column(Date)
 
     

@@ -1,5 +1,8 @@
 from pydantic import BaseModel
 from typing import Optional
+from typing import List
+
+from app.schemas.users_schemas.seller_schema import  SellerWithUser
 
 class CostCenterBase(BaseModel):
     name: str
@@ -14,3 +17,7 @@ class CostCenterUpdate(CostCenterBase):
 
 class CostCenterResponse(CostCenterBase):
     id: int
+    sellers: List[SellerWithUser] = []  
+    
+    class Config:
+        from_attributes = True

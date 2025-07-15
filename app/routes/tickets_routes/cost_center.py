@@ -1,4 +1,4 @@
-from app.controller.tickets_controller.cost_center_controller import get_cost_center_by_id, get_tickets_by_cost_center
+from app.controller.tickets_controller.cost_center_controller import get_cost_center_by_id, get_ticket_products_by_cost_center, get_tickets_by_cost_center
 from . import *
 
 router = APIRouter()
@@ -30,6 +30,13 @@ def remove_cost_center(center_id: int, db: Session = Depends(get_db)):
 def get_all_tickets_by_cost_center(center_id: int, db: Session = Depends(get_db)):
     try:
         return get_tickets_by_cost_center(center_id, db)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+@router.get("",response_model=List[TicketProductResponse], tags=["Cost Centers"])
+def get_ticket_products_by_cost_center_route(cost_center_id: int, db: Session = Depends(get_db)):
+    try:
+        return get_ticket_products_by_cost_center(db, cost_center_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     

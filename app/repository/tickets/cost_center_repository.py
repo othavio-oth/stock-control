@@ -1,10 +1,17 @@
 from . import *
+from sqlalchemy.orm import joinedload
 
 def get_all_cost_centers(db):
     return db.query(CostCenter).all()
 
 def get_cost_center_by_id(db, center_id):
-    return db.query(CostCenter).filter(CostCenter.id == center_id).first()
+    costcenter = (
+        db.query(CostCenter)
+        .options(joinedload(CostCenter.sellers))
+        .filter(CostCenter.id == center_id)
+        .first()
+    )
+    return costcenter
 
 def create_cost_center(db, center_data):
     center = CostCenter(**center_data.dict())
@@ -31,4 +38,7 @@ def delete_cost_center(db, center_id):
 
 def get_tickets_by_cost_center(db, center_id):
     return db.query(Ticket).filter(Ticket.cost_center_id == center_id).all()
+
+
+
 

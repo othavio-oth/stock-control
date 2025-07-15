@@ -1,5 +1,5 @@
 from app.routes.products_routes import groups, unit_measurement, unit_conversion, type_registration, products, cost_taxation
-from app.routes.users_routes import user, authentication, permissions, roles
+from app.routes.users_routes import seller, user, authentication, permissions, roles
 from app.routes.tickets_routes import cost_center, tickets_routes
 from app.routes.stock_routes import stock_router
 import uvicorn
@@ -36,6 +36,8 @@ app.include_router(cost_taxation.router, prefix="/cost_taxations_adm",)
 app.include_router(cost_center.router, prefix="/cost_centers_adm",)
 app.include_router(tickets_routes.router, prefix="/tickets_adm",)
 app.include_router(stock_router.router, prefix="/stock_adm",)
+app.include_router(seller.router, prefix="/sellers_adm")
+
 
 class GenericalError(HTTPException):
     def __init__(self, detail="Erro interno do servidor"):

@@ -35,7 +35,10 @@ class TicketProductBase(BaseModel):
     quantity_ordered: float
     quantity_sold: Optional[float] = 0
     sold_until: Optional[date] = None
+    unit_price: Optional[float] = None
     # correction_factor: float
+    class Config:
+        orm_mode = True
 
 class TicketProductCreate(TicketProductBase):
     pass

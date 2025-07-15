@@ -51,3 +51,11 @@ def remove_product_from_ticket(db, ticket_product_id):
         db.delete(ticket_product)
         db.commit()
     return ticket_product
+
+def get_ticket_products_by_cost_center(db: Session, cost_center_id: int):
+    return (
+        db.query(TicketProduct)
+        .join(Ticket)
+        .filter(Ticket.cost_center_id == cost_center_id)
+        .all()
+    )

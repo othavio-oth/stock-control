@@ -17,3 +17,6 @@ def get_tickets_by_cost_center(center_id, db):
 
 def get_cost_center_by_id(center_id, db):
     return CostCenterService.get_cost_center_by_id(db, center_id)
+
+def get_ticket_products_by_cost_center(db, cost_center_id):
+    return CostCenterService.get_ticket_products_by_cost_center(db, cost_center_id)

@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from app.schemas.tickets_schemas.cost_center_schemas import CostCenterResponse
 from app.schemas.users_schemas.user_schema import UserResponse
 
 
@@ -18,7 +17,6 @@ class SellerResponse(SellerBase):
 
 class SellerWithUser(SellerResponse):
     user: UserResponse
-    cost_center: CostCenterResponse
 
     class Config:
         from_attributes = True
