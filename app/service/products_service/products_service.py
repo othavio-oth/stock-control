@@ -4,8 +4,8 @@ from app.models.groups import Product
 
 class ProductService:
     @staticmethod
-    def list_products(db):
-        return get_all_products(db)
+    def list_products(page,db):
+        return get_all_products(page,db)
 
     @staticmethod
     def create_product(db, product_data):

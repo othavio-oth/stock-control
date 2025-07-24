@@ -1,10 +1,13 @@
+from fastapi import Query
+
+from app.schemas.products_schemas.products_schemas import ProductsPageResponse
 from . import *
 
 router = APIRouter()
 
-@router.get("/products/", response_model=List[ProductResponse], tags=["Products"])
-def get_products(db: Session = Depends(get_db)):
-    return list_products(db)
+@router.get("/products/", response_model=ProductsPageResponse, tags=["Products"])
+def get_products(page: int = Query(1, ge=1), db: Session = Depends(get_db)):
+    return list_products(page,db)
 
 @router.post("/products/", response_model=ProductResponse, tags=["Products"])
 def create_new_product(product_data: ProductCreate, db: Session = Depends(get_db)):

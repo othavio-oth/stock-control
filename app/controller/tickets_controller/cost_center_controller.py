@@ -1,7 +1,7 @@
 from . import *
 
-def list_cost_centers(db):
-    return CostCenterService.list_cost_centers(db)
+def list_cost_centers(page,db):
+    return CostCenterService.list_cost_centers(page,db)
 
 def create_cost_center(center_data, db):
     return CostCenterService.create_cost_center_service(db, center_data)

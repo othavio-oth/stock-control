@@ -1,12 +1,14 @@
+from fastapi import Query
 from app.controller.tickets_controller.tickets_controller import close_ticket_controller
+from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from . import *
 from app.middleware.auth_handler import get_current_user
 
 router = APIRouter()
 
-@router.get("/tickets/", response_model=List[TicketResponse], tags=["Tickets"])
-def get_tickets(db: Session = Depends(get_db)):
-    return list_tickets(db)
+@router.get("/tickets/", response_model=AllTicketsResponse, tags=["Tickets"])
+def get_tickets( page: int = Query(1, ge=1),db: Session = Depends(get_db)):
+    return list_tickets(page, db)
 
 @router.post("/tickets/", response_model=TicketResponse, tags=["Tickets"])
 def create_new_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db), user: int = Depends(get_current_user)):

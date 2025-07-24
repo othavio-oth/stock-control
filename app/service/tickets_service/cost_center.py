@@ -4,8 +4,8 @@ from app.repository.tickets.tickets_repository import Ticket
 
 class CostCenterService:
     @staticmethod
-    def list_cost_centers(db):
-        return get_all_cost_centers(db)
+    def list_cost_centers(page,db):
+        return get_all_cost_centers(page,db)
 
     @staticmethod
     def create_cost_center_service(db, center_data):

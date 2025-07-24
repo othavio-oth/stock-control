@@ -1,7 +1,19 @@
 from . import *
 
-def get_all_products(db):
-    return db.query(Product).order_by(Product.id).all()
+def get_all_products(page,db):
+    page_size = 50
+    offset = (page - 1) * page_size
+    total = db.query(Product).count()
+    products = db.query(Product).order_by(Product.id).offset(offset).limit(page_size).all()
+    total_pages = (total + page_size - 1) // page_size
+
+    return {
+        "items": products,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
 
 def get_product_by_id(db, product_id):
     return db.query(Product).filter(Product.id == product_id).first()

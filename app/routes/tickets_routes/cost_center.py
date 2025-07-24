@@ -1,11 +1,13 @@
+from fastapi import Query
 from app.controller.tickets_controller.cost_center_controller import get_cost_center_by_id, get_ticket_products_by_cost_center, get_tickets_by_cost_center
+from app.schemas.list_all_schemas.list_all_responses import AllCostCentersResponse
 from . import *
 
 router = APIRouter()
 
-@router.get("/cost_centers/", response_model=List[CostCenterResponse], tags=["Cost Centers"])
-def get_cost_centers(db: Session = Depends(get_db)):
-    return list_cost_centers(db)
+@router.get("/cost_centers/", response_model=AllCostCentersResponse, tags=["Cost Centers"])
+def get_cost_centers(page:int = Query(1, ge=1),db: Session = Depends(get_db)):
+    return list_cost_centers(page,db)
 
 @router.post("/cost_centers/", response_model=CostCenterResponse, tags=["Cost Centers"] )
 def create_new_cost_center(center_data: CostCenterCreate, db: Session = Depends(get_db)):

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 from datetime import date
 
 class ProductBase(BaseModel):
@@ -23,3 +23,10 @@ class ProductUpdate(ProductBase):
 
 class ProductResponse(ProductBase):
     id: int
+    
+class ProductsPageResponse(BaseModel):
+    items: List[ProductResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

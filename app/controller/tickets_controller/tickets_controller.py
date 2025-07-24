@@ -1,7 +1,7 @@
 from . import *
 
-def list_tickets(db):
-    return TicketService.list_tickets(db)
+def list_tickets(page,db):
+    return TicketService.list_tickets(page,db)
 
 def create_ticket(ticket_data, db):
     import logging

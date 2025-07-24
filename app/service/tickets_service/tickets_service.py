@@ -7,8 +7,8 @@ from app.schemas.stock_schemas.stock_movement_schema import StockMovementSaleCre
 
 class TicketService:
     @staticmethod
-    def list_tickets(db):
-        return get_all_tickets(db)
+    def list_tickets(page,db):
+        return get_all_tickets(page,db)
 
     @staticmethod
     def create_ticket(db, ticket_data):

@@ -1,8 +1,21 @@
 from . import *
 from sqlalchemy.orm import joinedload
 
-def get_all_cost_centers(db):
-    return db.query(CostCenter).all()
+def get_all_cost_centers(page,db):
+    page_size = 50
+    offset = (page - 1) * page_size
+    total = db.query(CostCenter).count()
+    costcenters = db.query(CostCenter).offset(offset).limit(page_size).all()
+    total_pages = (total + page_size - 1) // page_size
+    return {
+        "items": costcenters,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
+
+    
 
 def get_cost_center_by_id(db, center_id):
     costcenter = (

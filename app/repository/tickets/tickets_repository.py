@@ -1,9 +1,19 @@
 from . import *
 from sqlalchemy.orm import joinedload
 
-def get_all_tickets(db: Session):
-    tickets = db.query(Ticket).options(joinedload(Ticket.products).joinedload(TicketProduct.product)).all()
-    return tickets
+def get_all_tickets(page:int,db: Session):
+    page_size = 50
+    offset = (page - 1) * page_size
+    total = db.query(Ticket).count()
+    tickets = db.query(Ticket).options(joinedload(Ticket.products).joinedload(TicketProduct.product)).offset(offset).limit(page_size).all()
+    total_pages = (total + page_size - 1) // page_size
+    return {
+    "items": tickets,
+    "total": total,
+    "page": page,
+    "page_size": page_size,
+    "total_pages": total_pages
+    }
 
 def get_ticket_by_id(db: Session, ticket_id: int):
     return db.query(Ticket).options(joinedload(Ticket.products)).filter(Ticket.id == ticket_id).first()
