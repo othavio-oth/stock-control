@@ -1,44 +1,34 @@
+from datetime import datetime
+from app.controller.stock_controller.stock_movement_controller import create_system_in_movement, get_all_movements, get_current_product_quantity, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product
+from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead, SystemInStockMovement, TotalProductStockResponse
 from . import *
 router = APIRouter()
 
-@router.get("/stock-products/", response_model=List[StockProductResponse])
-def get_stock_products(db: Session = Depends(get_db)):
-    return list_stock_products(db)
+@router.get("/stock-movements", response_model=List[StockMovementRead], tags=["Stock Movements"])
+def get_stock_movements(db: Session = Depends(get_db)):
+    return get_all_movements(db)
 
-@router.post("/stock-products/", response_model=StockProductResponse)
-def create_new_stock_product(stock_product_data: StockProductCreate, db: Session = Depends(get_db), user: int = Depends(get_current_user)):
-    try:
-        import logging
-        logging.info(f"StockProduct created by user {user['id']}")
-        return create_stock_product(stock_product_data, db)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@router.post("/stock-movements/system-in", response_model=SystemInStockMovement, tags=["Stock Movements"])
+def create_system_in(system_in_data: SystemInStockMovement, db: Session = Depends(get_db)):
+    return create_system_in_movement(system_in_data, db)
 
-@router.put("/stock-products/{stock_product_id}", response_model=StockProductResponse)
-def update_stock_product(stock_product_id: int, stock_product_data: StockProductUpdate, db: Session = Depends(get_db)):
-    return edit_stock_product(stock_product_id, stock_product_data, db)
+@router.get("/stock-movements/total", response_model=List[TotalProductStockResponse], tags=["Stock Movements"])
+def get_total_in_system(db: Session = Depends(get_db)):
+    return get_current_product_quantity(db)
+    
 
-@router.delete("/stock-products/{stock_product_id}")
-def remove_stock_product(stock_product_id: int, db: Session = Depends(get_db)):
-    return delete_stock_product(stock_product_id, db)
+@router.get("/stock-movements/{product_id}", response_model=TotalProductStockResponse, tags=["Stock Movements"])
+def get_stock_products(product_id: int,db: Session = Depends(get_db), ):
+    return get_total_in_system_by_product(db, product_id)
 
-@router.get("/stock-products-history/", response_model=List[StockProductHistoryResponse])
-def get_stock_products_history(db: Session = Depends(get_db)):
-    return list_stock_products_history(db)
 
-@router.post("/stock-products-history/", response_model=StockProductHistoryResponse)
-def create_new_stock_product_history(stock_product_history_data: StockProductHistoryCreate, db: Session = Depends(get_db), user: int = Depends(get_current_user)):
-    try:
-        import logging
-        logging.info(f"StockProductHistory created by user {user['id']}")
-        return create_stock_product_history(stock_product_history_data, db)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.put("/stock-products-history/{stock_product_history_id}", response_model=StockProductHistoryResponse)
-def update_stock_product_history(stock_product_history_id: int, stock_product_history_data: StockProductHistoryUpdate, db: Session = Depends(get_db)):
-    return edit_stock_product_history(stock_product_history_id, stock_product_history_data, db)
-
-@router.delete("/stock-products-history/{stock_product_history_id}")
-def remove_stock_product_history(stock_product_history_id: int, db: Session = Depends(get_db)):
-    return delete_stock_product_history(stock_product_history_id, db)
+@router.get("/stock-movements/cost-center/{cost_center_id}/period", response_model=List[TotalProductStockResponse], tags=["Stock Movements"])
+def get_total_sold_by_cost_center_in_period(
+    cost_center_id: int,
+    start_date: datetime,
+    end_date: datetime,
+    db: Session = Depends(get_db),
+):
+    return get_total_sold_by_cost_center_in_period_grouped_by_product(
+        db, cost_center_id, start_date, end_date
+    )

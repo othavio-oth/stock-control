@@ -6,7 +6,7 @@ from app.middleware.db import get_db
 import logging
 
 # Stock imports
-from app.service.stock_service.stock_product_service import StockProductService, StockProductHistoryService
+from app.service.stock_service.stock_movement_service import StockMovementService
 from app.schemas.stock_schemas.stock_products_schemas import StockProductBase, StockProductResponse, StockProductHistoryBase, StockProductHistoryResponse
 
 # Tickets imports

@@ -26,9 +26,10 @@ if config.config_file_name is not None:
 
 from app.models.user import User
 from app.models.groups import Group, UnitMeasurement, UnitConversion, TypeRegistration, Product, CostTaxation
-from app.models.tickets import CostCenter, StockProducts, StockProductsHistory
+from app.models.tickets import CostCenter
 from app.models.seller import Seller
 from app.database.base import Base
+from app.models.stockMovement import StockMovement
 
 config = context.config
 fileConfig(config.config_file_name)

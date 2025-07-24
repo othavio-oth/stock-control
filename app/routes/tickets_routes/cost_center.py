@@ -33,10 +33,10 @@ def get_all_tickets_by_cost_center(center_id: int, db: Session = Depends(get_db)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     
-@router.get("",response_model=List[TicketProductResponse], tags=["Cost Centers"])
-def get_ticket_products_by_cost_center_route(cost_center_id: int, db: Session = Depends(get_db)):
+@router.get("/cost_centers/{center_id}/tickets/products/",response_model=List[TicketProductResponse], tags=["Cost Centers"])
+def get_ticket_products_by_cost_center_route(center_id: int, db: Session = Depends(get_db)):
     try:
-        return get_ticket_products_by_cost_center(db, cost_center_id)
+        return get_ticket_products_by_cost_center(db, center_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     

@@ -28,3 +28,6 @@ def remove_product_from_ticket_controller(ticket_product_id, db):
 
 def get_tickets_by_cost_center_controller(cost_center_id, db):
     return TicketService.get_tickets_by_cost_center(db, cost_center_id)
+
+def close_ticket_controller(id: int, db: Session = Depends(get_db)):
+    return TicketService.close_ticket_and_move_stock(id, db)

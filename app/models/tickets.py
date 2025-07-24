@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, Date, Numeric
+from enum import Enum
+from typing import List
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, Float, ForeignKey, Date, Numeric, func
 from app.database.base import Base
 from sqlalchemy.orm import relationship
 
@@ -12,8 +14,31 @@ class CostCenter(Base):
     status = Column(String, default=True)
     
     sellers = relationship("Seller", back_populates="cost_center", lazy='select') 
+    stock_movements = relationship("StockMovement", back_populates="cost_center")
 
 
+
+
+class TicketProduct(Base):
+    __tablename__ = "ticket_products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity_ordered = Column(Integer, nullable=False)
+    quantity_sold = Column(Integer, default=0)
+    unit_price = Column(Numeric(10, 2))
+    sold_until = Column(Date)
+    ticket = relationship("Ticket", back_populates="products")
+    product = relationship("Product")
+    
+    @property
+    def description(self):
+        return self.product.description if self.product else None
+
+
+    class Config:
+        from_attributes = True
 
 
 class Ticket(Base):
@@ -27,34 +52,10 @@ class Ticket(Base):
     cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
     order_date = Column(Date, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-
-class TicketProduct(Base):
-    __tablename__ = "ticket_products"
-
-    id = Column(Integer, primary_key=True, index=True)
-    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    quantity_ordered = Column(Integer, nullable=False)
-    quantity_sold = Column(Integer, default=0)
-    unit_price = Column(Numeric(10, 2))
-    sold_until = Column(Date)
+    products = relationship("TicketProduct", back_populates="ticket")
 
     
-    # correction_factor = Column(Float, nullable=False)
+    class Config:
+        from_attributes = True
 
-class StockProducts(Base):
-    __tablename__ = "stock_products"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(250), nullable=False)
-    owner = Column(Integer, ForeignKey("users.id"), nullable=False)
-
-class StockProductsHistory(Base):
-    __tablename__ = "stock_products_history"
-
-    id = Column(Integer, primary_key=True, index=True)
-    stock_product_id = Column(Integer, ForeignKey("stock_products.id"), nullable=False)
-    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
-    quantity = Column(Float, nullable=False)
-    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
-    date = Column(Date, nullable=False)
+    

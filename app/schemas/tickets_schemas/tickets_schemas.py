@@ -1,6 +1,33 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 from datetime import date
+
+
+class TicketProductBase(BaseModel):
+    ticket_id: int
+    product_id: int
+    quantity_ordered: float
+    quantity_sold: Optional[float] = 0
+    sold_until: Optional[date] = None
+    unit_price: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TicketProductCreate(TicketProductBase):
+    pass
+
+
+class TicketProductResponse(TicketProductBase):
+    id: int
+    description: Optional[str] = None
+
+
+    class Config:
+        from_attributes = True
+
+
 
 class TicketBase(BaseModel):
     name: str
@@ -13,35 +40,18 @@ class TicketBase(BaseModel):
     class Config:
         from_attributes = True
 
+
 class TicketCreate(TicketBase):
-    name: str
-    description: Optional[str] = None
-    status: str
-    order_date: Optional[date] = None
-    cost_center_id: int
+    pass
+
 
 class TicketUpdate(TicketBase):
     pass
 
+
 class TicketResponse(TicketBase):
     id: int
-    
-class TicketProductList(TicketResponse):
-    product_ids: list[int]
+    products: List[TicketProductResponse] = []
 
-class TicketProductBase(BaseModel):
-    ticket_id: int
-    product_id: int
-    quantity_ordered: float
-    quantity_sold: Optional[float] = 0
-    sold_until: Optional[date] = None
-    unit_price: Optional[float] = None
-    # correction_factor: float
     class Config:
-        orm_mode = True
-
-class TicketProductCreate(TicketProductBase):
-    pass
-
-class TicketProductResponse(TicketProductBase):
-    id: int
+        from_attributes = True

@@ -42,15 +42,17 @@ class Product(Base):
     custom_id = Column(Integer, unique=True, nullable=True)
     description = Column(String, nullable=False)
     status = Column(Boolean, default=True)
-    type_registration_id = Column(Integer, ForeignKey("type_registration.id"), nullable=False)
-    group_id = Column(Integer, ForeignKey("group.id"), nullable=False)
-    date_cost = Column(Date, nullable=False)
+    type_registration_id = Column(Integer, ForeignKey("type_registration.id"), nullable=True)
+    group_id = Column(Integer, ForeignKey("group.id"), nullable=True)
     cost_inside = Column(Float, nullable=False)
     conversion_id = Column(Integer, ForeignKey("unit_conversion.id"), nullable=True)
     cost_output = Column(Float, nullable=False)
     un_inside_id = Column(Integer, ForeignKey("unit_measurement.id"), nullable=False)
     un_output_stock_id = Column(Integer, ForeignKey("unit_measurement.id"), nullable=False)
     cost_taxation_id = Column(Integer, ForeignKey("cost_taxation.id"), nullable=True)
+    
+    stock_movements = relationship("StockMovement", back_populates="product")
+
 
     cost_taxation = relationship("CostTaxation", back_populates="products")
 

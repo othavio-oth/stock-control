@@ -6,9 +6,8 @@ class ProductBase(BaseModel):
     custom_id: Optional[int] = None
     description: str
     status: bool = True
-    type_registration_id: int
-    group_id: int
-    date_cost: date
+    type_registration_id: Optional[int] = None
+    group_id: Optional[int] = None
     cost_inside: float
     conversion_id: Optional[int] = None
     cost_output: float

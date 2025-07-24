@@ -1,10 +1,12 @@
 from . import *
+from sqlalchemy.orm import joinedload
 
-def get_all_tickets(db):
-    return db.query(Ticket).order_by(Ticket.id).all()
+def get_all_tickets(db: Session):
+    tickets = db.query(Ticket).options(joinedload(Ticket.products).joinedload(TicketProduct.product)).all()
+    return tickets
 
-def get_ticket_by_id(db, ticket_id):
-    return db.query(Ticket).filter(Ticket.id == ticket_id).first()
+def get_ticket_by_id(db: Session, ticket_id: int):
+    return db.query(Ticket).options(joinedload(Ticket.products)).filter(Ticket.id == ticket_id).first()
 
 def create_ticket(db, ticket_data):
     ticket = Ticket(**ticket_data.dict())

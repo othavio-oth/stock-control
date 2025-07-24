@@ -11,4 +11,3 @@ from app.middleware.auth_handler import login
 from app.schemas.tickets_schemas.cost_center_schemas import CostCenterCreate, CostCenterUpdate, CostCenterResponse
 from app.controller.tickets_controller.cost_center_controller import create_cost_center, list_cost_centers, edit_cost_center, delete_cost_center
 from app.schemas.stock_schemas.stock_products_schemas import StockProductBase, StockProductResponse, StockProductHistoryBase, StockProductHistoryResponse, StockProductCreate, StockProductUpdate, StockProductHistoryCreate, StockProductHistoryUpdate
-from app.controller.stock_controller.stock_product_controller import create_stock_product, list_stock_products, edit_stock_product, delete_stock_product, edit_stock_product_history, delete_stock_product_history, create_stock_product_history, list_stock_products_history
