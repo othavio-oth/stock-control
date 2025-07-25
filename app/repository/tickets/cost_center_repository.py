@@ -2,7 +2,7 @@ from . import *
 from sqlalchemy.orm import joinedload
 
 def get_all_cost_centers(page,db):
-    page_size = 50
+    page_size = 20
     offset = (page - 1) * page_size
     total = db.query(CostCenter).count()
     costcenters = db.query(CostCenter).offset(offset).limit(page_size).all()

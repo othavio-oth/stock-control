@@ -1,8 +1,32 @@
 from . import *
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
+
+def search_tickets_any( search_term: str,page:int,db: Session):
+    page_size = 20
+    offset = (page - 1) * page_size
+    base_query = db.query(Ticket).join(CostCenter).filter(
+            or_(
+                Ticket.id == int(search_term) if search_term.isdigit() else False,
+                Ticket.name.ilike(f"%{search_term}%"),
+                CostCenter.name.ilike(f"%{search_term}%")
+            )
+        )
+    total = base_query.count()
+    total_pages = (total + page_size - 1) // page_size
+
+    tickets = base_query.offset(offset).limit(page_size).all()
+    return {
+    "items": tickets,
+    "total": total,
+    "page": page,
+    "page_size": page_size,
+    "total_pages": total_pages
+    }
+
 
 def get_all_tickets(page:int,db: Session):
-    page_size = 50
+    page_size = 20
     offset = (page - 1) * page_size
     total = db.query(Ticket).count()
     tickets = db.query(Ticket).options(joinedload(Ticket.products).joinedload(TicketProduct.product)).offset(offset).limit(page_size).all()

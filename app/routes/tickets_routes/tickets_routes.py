@@ -1,5 +1,5 @@
 from fastapi import Query
-from app.controller.tickets_controller.tickets_controller import close_ticket_controller
+from app.controller.tickets_controller.tickets_controller import close_ticket_controller, search_tickets_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from . import *
 from app.middleware.auth_handler import get_current_user
@@ -27,6 +27,17 @@ def update_ticket(ticket_id: int, ticket_data: TicketResponse, db: Session = Dep
 @router.delete("/tickets/{ticket_id}", tags=["Tickets"])
 def remove_ticket(ticket_id: int, db: Session = Depends(get_db)):
     return delete_ticket(ticket_id, db)
+
+
+@router.get("/tickets/search_any", response_model=AllTicketsResponse, tags=["Tickets"])
+def search_tickets_any_route(
+    term: str,
+    page: int = Query(1, ge=1),
+    db: Session = Depends(get_db)
+):
+    tickets = search_tickets_by_term_controller( term,page,db)
+    return tickets
+
 
 @router.get("/tickets/{ticket_id}/products/", response_model=List[int], tags=["Tickets"])
 def get_products_for_ticket(ticket_id: int, db: Session = Depends(get_db)):

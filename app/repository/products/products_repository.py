@@ -1,7 +1,7 @@
 from . import *
 
 def get_all_products(page,db):
-    page_size = 50
+    page_size = 20
     offset = (page - 1) * page_size
     total = db.query(Product).count()
     products = db.query(Product).order_by(Product.id).offset(offset).limit(page_size).all()
