@@ -17,16 +17,6 @@ def list_users(db: Session = Depends(get_db)):
 
 def read_user(user_id: int, db: Session = Depends(get_db)):
     try:
-        # user = UserCreate(
-        # username="othavio",
-        # email="exemplo@email.com",
-        # full_name="Othavio",
-        # nickname="Othavio",
-        # is_active=True,
-        # is_superuser=True,
-        # password="senha"
-        # )
-        # create_user(user, db)
         return get_user_details(db, user_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
