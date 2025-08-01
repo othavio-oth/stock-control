@@ -17,3 +17,6 @@ def get_total_sold_by_cost_center_in_period_grouped_by_product(db, cost_center_i
 
 def get_current_product_quantity(db):
     return StockMovementService.get_current_product_quantity_service(db)
+
+def get_cost_center_stock_controller(cost_center_id: int, db):
+    return StockMovementService.get_cost_center_stock_service(cost_center_id, db)

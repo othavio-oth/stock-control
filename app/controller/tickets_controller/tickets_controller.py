@@ -1,3 +1,4 @@
+from app.models.tickets import Ticket
 from . import *
 
 def list_tickets(page,db):
@@ -34,3 +35,7 @@ def close_ticket_controller(id: int, db: Session = Depends(get_db)):
 
 def search_tickets_by_term_controller(search_term,page, db):
     return TicketService.search_tickets_by_term(search_term,page, db)
+
+
+def process_sales_controller(ticket: Ticket, db: Session):
+    return TicketService.process_sales(ticket, db)

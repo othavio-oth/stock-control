@@ -26,8 +26,12 @@ class StockMovementRead(StockMovementBase):
 
     class Config:
         from_attributes = True 
-
-class TotalProductStockResponse(BaseModel):
+        
+class StockTotal(BaseModel):
     product_id: int
-    total_in_system: int
+    total: int
+    
+
+class TotalProductStockResponse(StockTotal):
+    pass
     

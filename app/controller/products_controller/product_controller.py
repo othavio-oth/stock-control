@@ -17,3 +17,6 @@ def delete_product(product_id, db):
        return ProductService.remove_product(db, product_id)
     except ValueError as e:
        raise HTTPException(status_code=400, detail=str(e))
+   
+def search_products_by_term_controller(term,page, db):
+    return ProductService.search_products(term,page,db)

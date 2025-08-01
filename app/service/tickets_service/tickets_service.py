@@ -1,9 +1,14 @@
+from datetime import datetime
 from fastapi import HTTPException
-from app.models.stockMovement import MovementType
-from app.repository.stock.stock_movement_repository import move_stock_to_cost_center
+from pytest import Session
+from app.models.stockMovement import MovementType, StockMovement
+from app.repository.stock.stock_movement_repository import create_stock_movements_for_sales, move_stock_to_cost_center
 from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket
 from app.models.tickets import Ticket, TicketProduct
-from app.schemas.stock_schemas.stock_movement_schema import StockMovementSaleCreate
+from app.schemas.stock_schemas.stock_movement_schema import  StockMovementSaleCreate
+from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
+from sqlalchemy.orm import joinedload
+
 
 class TicketService:
     @staticmethod
@@ -82,4 +87,74 @@ class TicketService:
         db.refresh(ticket)
 
         return ticket
+    
+    
+    @staticmethod
+    def process_sales(ticket: TicketRegisterSales, db: Session):
+        try:
+            create_stock_movements_for_sales(ticket.products, ticket.cost_center_id, db)
+
+            # Atualiza os produtos do ticket (substitui os antigos pelos novos)
+            updated_ticket = TicketService.update_ticket_products_with_sales(ticket, db)
+
+
+            return updated_ticket
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Erro ao processar venda: {str(e)}")
+
+    @staticmethod
+    def update_ticket_products_with_sales(ticket, db: Session):
+        existing_products = {
+            tp.product_id: tp for tp in db.query(TicketProduct).filter(TicketProduct.ticket_id == ticket.id).all()
+        }
+
+        updated_ticket_products = []
+
+        for tp in ticket.products:
+            data = tp.dict(exclude={'ticket_id'})
+            product_id = data['product_id']
+            new_qtd_sold = data.get('quantity_sold', 0)
+
+            if product_id in existing_products:
+                old_tp = existing_products[product_id]
+                delta = new_qtd_sold - old_tp.quantity_sold
+                if delta > 0:
+                    db.add(StockMovement(
+                        product_id=product_id,
+                        quantity=delta,
+                        movement_type=MovementType.SOLD,
+                        cost_center_id=ticket.cost_center_id,
+                        supplier=None
+                    ))
+                # Atualiza os dados existentes
+                for key, value in data.items():
+                    setattr(old_tp, key, value)
+                updated_ticket_products.append(old_tp)
+
+            else:
+                # Novo produto vinculado ao ticket
+                new_tp = TicketProduct(**data, ticket_id=ticket.id)
+                db.add(new_tp)
+                updated_ticket_products.append(new_tp)
+
+                if new_qtd_sold > 0:
+                    db.add(StockMovement(
+                        product_id=product_id,
+                        quantity=new_qtd_sold,
+                        movement_type=MovementType.OUT,
+                        cost_center_id=data['cost_center_id'],
+                        supplier=None
+                    ))
+
+        db.commit()
+
+        # Retorna o ticket atualizado, incluindo os produtos
+        updated_ticket = db.query(Ticket).filter(Ticket.id == ticket.id).options(
+            joinedload(Ticket.products)
+        ).first()
+
+        return updated_ticket
+
+
 

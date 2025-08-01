@@ -1,6 +1,7 @@
 from fastapi import Query
-from app.controller.tickets_controller.tickets_controller import close_ticket_controller, search_tickets_by_term_controller
+from app.controller.tickets_controller.tickets_controller import close_ticket_controller, process_sales_controller, search_tickets_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
+from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
 from . import *
 from app.middleware.auth_handler import get_current_user
 
@@ -13,7 +14,6 @@ def get_tickets( page: int = Query(1, ge=1),db: Session = Depends(get_db)):
 @router.post("/tickets/", response_model=TicketResponse, tags=["Tickets"])
 def create_new_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db), user: int = Depends(get_current_user)):
     try:
-        import logging
         ticket_data.created_by = user['id']
         result = create_ticket(ticket_data, db)
         return result
@@ -29,7 +29,7 @@ def remove_ticket(ticket_id: int, db: Session = Depends(get_db)):
     return delete_ticket(ticket_id, db)
 
 
-@router.get("/tickets/search_any", response_model=AllTicketsResponse, tags=["Tickets"])
+@router.get("/tickets/search", response_model=AllTicketsResponse, tags=["Tickets"])
 def search_tickets_any_route(
     term: str,
     page: int = Query(1, ge=1),
@@ -58,3 +58,10 @@ def remove_product_from_ticket_route(ticket_product_id: int, db: Session = Depen
 @router.post("/tickets/{id}/close", tags=["Tickets"])
 def close_ticket_product(id: int, db: Session = Depends(get_db)):
     return close_ticket_controller( id, db)
+
+@router.post("/tickets/update-sales", response_model=TicketRegisterSales, tags=["Tickets"])
+def update_ticket_products_and_create_movements(
+    ticket: TicketRegisterSales,
+    db: Session = Depends(get_db)
+):
+    return process_sales_controller(ticket, db)

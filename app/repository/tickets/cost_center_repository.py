@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from . import *
 from sqlalchemy.orm import joinedload
 
@@ -53,5 +54,23 @@ def get_tickets_by_cost_center(db, center_id):
     return db.query(Ticket).filter(Ticket.cost_center_id == center_id).all()
 
 
+def search_cost_centers_by_term( search_term,page,db):
+    page_size = 20
+    offset = (page - 1) * page_size
+    base_query = db.query(CostCenter).filter(
+            or_(
+                CostCenter.name.ilike(f"%{search_term}%"),
+                CostCenter.description.ilike(f"%{search_term}%"),
+            )
+        )
+    total = base_query.count()
+    total_pages = (total + page_size - 1) // page_size
 
-
+    tickets = base_query.offset(offset).limit(page_size).all()
+    return {
+    "items": tickets,
+    "total": total,
+    "page": page,
+    "page_size": page_size,
+    "total_pages": total_pages
+    }

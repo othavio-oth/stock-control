@@ -20,3 +20,6 @@ def get_cost_center_by_id(center_id, db):
 
 def get_ticket_products_by_cost_center(db, cost_center_id):
     return CostCenterService.get_ticket_products_by_cost_center(db, cost_center_id)
+
+def search_cost_centers_by_term_controller(term, page, db):
+    return CostCenterService.search_cost_centers(term, page, db)

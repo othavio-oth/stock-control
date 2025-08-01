@@ -8,7 +8,7 @@ from app.database.base import Base
 class MovementType(str, enum.Enum):
     SYSTEM_IN = "system_in"             # entrada no sistema
     TO_COST_CENTER = "to_cost_center"   # enviado para um cliente/cost center
-    SOLD = "sold"                        # vendido ao cliente
+    SOLD = "sold"                        # vendido pelo cliente
     LOST = "lost"                        # perda
 
 class StockMovement(Base):

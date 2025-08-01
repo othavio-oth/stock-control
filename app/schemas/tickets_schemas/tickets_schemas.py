@@ -13,6 +13,9 @@ class TicketProductBase(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class TicketProductUpdate(TicketProductBase):
+    id: int
 
 
 class TicketProductCreate(TicketProductBase):
@@ -49,9 +52,18 @@ class TicketUpdate(TicketBase):
     pass
 
 
+class TicketRegisterSales(TicketBase):
+    id: int
+    products: List[TicketProductBase] = []
+
 class TicketResponse(TicketBase):
     id: int
     products: List[TicketProductResponse] = []
 
     class Config:
         from_attributes = True
+
+class TicketSalesResponse(BaseModel):
+    message: str
+    ticket_id: int
+    total_products: int

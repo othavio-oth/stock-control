@@ -1,4 +1,4 @@
-from app.repository.products.products_repository import get_all_products, create_product, update_product, delete_product, get_product_by_id
+from app.repository.products.products_repository import get_all_products, create_product, search_products_by_term, update_product, delete_product, get_product_by_id
 from sqlalchemy.orm import Session
 from app.models.groups import Product
 
@@ -22,3 +22,7 @@ class ProductService:
         if not get_product_by_id(db, product_id):
             raise ValueError("Produto não encontrado.")
         return delete_product(db, product_id)
+    
+    @staticmethod
+    def search_products(term,page, db):
+        return search_products_by_term(term,page, db)

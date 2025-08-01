@@ -1,11 +1,13 @@
 from fastapi import Query
 
+from app.controller.products_controller.product_controller import search_products_by_term_controller
+from app.schemas.list_all_schemas.list_all_responses import AllProductsResponse
 from app.schemas.products_schemas.products_schemas import ProductsPageResponse
 from . import *
 
 router = APIRouter()
 
-@router.get("/products/", response_model=ProductsPageResponse, tags=["Products"])
+@router.get("/products/", response_model=AllProductsResponse, tags=["Products"])
 def get_products(page: int = Query(1, ge=1), db: Session = Depends(get_db)):
     return list_products(page,db)
 
@@ -23,3 +25,12 @@ def update_product(product_id: int, product_data: ProductUpdate, db: Session = D
 @router.delete("/products/{product_id}", tags=["Products"])
 def remove_product(product_id: int, db: Session = Depends(get_db)):
     return delete_product(product_id, db)
+
+@router.get("/products/search", response_model=AllProductsResponse, tags=["Products"])
+def search_products(
+    term: str,
+    page: int = Query(1, ge=1),
+    db: Session = Depends(get_db)
+):
+    products = search_products_by_term_controller( term,page,db)
+    return products

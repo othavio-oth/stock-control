@@ -1,5 +1,6 @@
 from fastapi import Query
-from app.controller.tickets_controller.cost_center_controller import get_cost_center_by_id, get_ticket_products_by_cost_center, get_tickets_by_cost_center
+from app.controller.tickets_controller.cost_center_controller import get_cost_center_by_id, get_ticket_products_by_cost_center, get_tickets_by_cost_center, search_cost_centers_by_term_controller
+from app.repository.tickets.cost_center_repository import search_cost_centers_by_term
 from app.schemas.list_all_schemas.list_all_responses import AllCostCentersResponse
 from . import *
 
@@ -49,3 +50,15 @@ def get_cost_center_by_center_id(center_id: int, db: Session = Depends(get_db)):
         return get_cost_center_by_id(center_id, db)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    
+    
+
+@router.get("/cost_centers/search", response_model=AllCostCentersResponse, tags=["Cost Centers"])
+def search_cost_centers(
+    term: str,
+    page: int = Query(1, ge=1),
+    db: Session = Depends(get_db)
+):
+    
+    cost_centers = search_cost_centers_by_term_controller( term,page,db)
+    return cost_centers

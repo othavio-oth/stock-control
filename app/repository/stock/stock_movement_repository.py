@@ -1,6 +1,7 @@
 from typing import List
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import case, func
+from app.models.tickets import TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  TotalProductStockResponse
 from app.models.stockMovement import MovementType
 from sqlalchemy import and_ 
@@ -84,7 +85,7 @@ def get_all_product_quantities_in_system(db: Session):
     result = [
         TotalProductStockResponse(
             product_id=product.id,
-            total_in_system=get_current_quantity(product.id, db)
+            total=get_current_quantity(product.id, db)
         )
         for product in products
     ]
@@ -139,3 +140,46 @@ def get_all_product_quantities_in_cost_center(db: Session, cost_center_id: int) 
         )
     
     return result
+
+def create_stock_movements_for_sales(ticket_products: list[TicketProduct],center_id: int, db: Session):
+    for tp in ticket_products:
+        stock_movement = StockMovement(
+            product_id=tp.product_id,
+            quantity=tp.quantity_sold,
+            movement_type=MovementType.SOLD,
+            cost_center_id=center_id
+        )
+        db.add(stock_movement)
+    
+    db.commit()
+    
+    
+def get_cost_center_stock(cost_center_id: int, db: Session):
+
+
+    stock = (
+        db.query(
+            StockMovement.product_id,
+            func.sum(
+                case(
+                    (StockMovement.movement_type.in_([MovementType.SYSTEM_IN, MovementType.TO_COST_CENTER]), StockMovement.quantity),
+                    (StockMovement.movement_type.in_([MovementType.SOLD, MovementType.LOST]), -StockMovement.quantity),
+                    else_=0
+                )
+            ).label("total")
+        )
+        .join(Product, Product.id == StockMovement.product_id)
+        .filter(StockMovement.cost_center_id == cost_center_id)
+        .group_by(StockMovement.product_id, Product.description)
+        .having(func.sum(
+            case(
+                (StockMovement.movement_type.in_([MovementType.SYSTEM_IN, MovementType.TO_COST_CENTER]), StockMovement.quantity),
+                (StockMovement.movement_type.in_([MovementType.SOLD, MovementType.LOST]), -StockMovement.quantity),
+                else_=0
+            )
+        ) > 0)
+        .all()
+    )
+
+
+    return stock

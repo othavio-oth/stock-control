@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.controller.stock_controller.stock_movement_controller import create_system_in_movement, get_all_movements, get_current_product_quantity, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product
+from app.controller.stock_controller.stock_movement_controller import create_system_in_movement, get_all_movements, get_cost_center_stock_controller, get_current_product_quantity, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product
 from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead, SystemInStockMovement, TotalProductStockResponse
 from . import *
 router = APIRouter()
@@ -32,3 +32,10 @@ def get_total_sold_by_cost_center_in_period(
     return get_total_sold_by_cost_center_in_period_grouped_by_product(
         db, cost_center_id, start_date, end_date
     )
+    
+@router.get("/stock-movements/cost-center/{cost_center_id}", response_model=List[TotalProductStockResponse], tags=["Stock Movements"])
+def get_cost_center_stock(
+    cost_center_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_cost_center_stock_controller(cost_center_id, db)

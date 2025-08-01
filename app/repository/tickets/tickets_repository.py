@@ -1,3 +1,9 @@
+from datetime import datetime
+
+from fastapi import HTTPException
+from app.models.stockMovement import StockMovement
+from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead, StockMovementSaleCreate
+from app.schemas.tickets_schemas.tickets_schemas import TicketProductBase
 from . import *
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_
@@ -95,3 +101,8 @@ def get_ticket_products_by_cost_center(db: Session, cost_center_id: int):
         .filter(Ticket.cost_center_id == cost_center_id)
         .all()
     )
+    
+
+    
+
+
