@@ -7,7 +7,8 @@ from alembic import context
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+if os.getenv("RENDER") != "true":
+    load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -34,7 +35,6 @@ from app.database.base import Base
 from app.models.stockMovement import StockMovement
 
 config = context.config
-fileConfig(config.config_file_name)
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
