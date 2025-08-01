@@ -1,3 +1,5 @@
+import json
+import os
 from app.routes.products_routes import groups, unit_measurement, unit_conversion, type_registration, products, cost_taxation
 from app.routes.users_routes import seller, user, authentication, permissions, roles
 from app.routes.tickets_routes import cost_center, tickets_routes
@@ -15,7 +17,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["localhost", "http://localhost:3000", "http://192.168.32.94:3000"],
+    allow_origins=json.loads(os.getenv("ALLOWED_ORIGINS", '["http://localhost:3000"]')),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
