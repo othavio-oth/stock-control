@@ -1,6 +1,6 @@
 from fastapi import Query
 
-from app.controller.products_controller.product_controller import search_products_by_term_controller
+from app.controller.products_controller.product_controller import get_product, search_products_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllProductsResponse
 from app.schemas.products_schemas.products_schemas import ProductsPageResponse
 from . import *
@@ -10,6 +10,10 @@ router = APIRouter()
 @router.get("/products/", response_model=AllProductsResponse, tags=["Products"])
 def get_products(page: int = Query(1, ge=1), db: Session = Depends(get_db)):
     return list_products(page,db)
+
+@router.get("/products/{product_id}", response_model=ProductResponse, tags=["Products"])
+def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
+    return get_product(product_id, db)
 
 @router.post("/products/", response_model=ProductResponse, tags=["Products"])
 def create_new_product(product_data: ProductCreate, db: Session = Depends(get_db)):

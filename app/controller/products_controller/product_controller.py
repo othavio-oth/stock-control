@@ -3,6 +3,9 @@ from . import *
 def list_products(page,db):
     return ProductService.list_products(page,db)
 
+def get_product(product_id, db):
+    return ProductService.get_product(product_id, db)
+
 def create_product(product_data, db):
     return ProductService.create_product(db, product_data)
 

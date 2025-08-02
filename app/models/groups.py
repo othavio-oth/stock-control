@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, Date, Numeric
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, Float, ForeignKey, Date, Numeric
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 
@@ -50,6 +50,8 @@ class Product(Base):
     un_inside_id = Column(Integer, ForeignKey("unit_measurement.id"), nullable=False)
     un_output_stock_id = Column(Integer, ForeignKey("unit_measurement.id"), nullable=False)
     cost_taxation_id = Column(Integer, ForeignKey("cost_taxation.id"), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=True)  # Campo de status
+    deleted_at = Column(DateTime, nullable=True)
     
     stock_movements = relationship("StockMovement", back_populates="product")
 

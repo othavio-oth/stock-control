@@ -23,6 +23,7 @@ class ProductUpdate(ProductBase):
 
 class ProductResponse(ProductBase):
     id: int
+    is_active: Optional[bool] = True
     
 class ProductsPageResponse(BaseModel):
     items: List[ProductResponse]

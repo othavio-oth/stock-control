@@ -12,7 +12,8 @@ class CostCenter(Base):
     name = Column(String(250), unique=True, nullable=False)
     description = Column(String, nullable=True)
     status = Column(String, default=True)
-    
+    is_active = Column(Boolean, default=True, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
     sellers = relationship("Seller", back_populates="cost_center", lazy='select') 
     stock_movements = relationship("StockMovement", back_populates="cost_center")
 

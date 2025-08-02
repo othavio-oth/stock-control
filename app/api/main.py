@@ -15,9 +15,31 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+import os
+import json
+from typing import List
+
+def get_allowed_origins() -> List[str]:
+    # Valor padrão garantido
+    default_origins = ["http://localhost:3000"]
+    
+    # Tenta carregar da variável de ambiente
+    env_origins = os.getenv("ALLOWED_ORIGINS")
+    
+    if not env_origins:
+        return default_origins
+    
+    try:
+        if env_origins.startswith("'") and env_origins.endswith("'"):
+            env_origins = env_origins[1:-1]
+            
+        return list(set(json.loads(env_origins) + default_origins))
+    except json.JSONDecodeError:
+        return default_origins 
+    
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=json.loads(os.getenv("ALLOWED_ORIGINS")),
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,4 +68,4 @@ class GenericalError(HTTPException):
         super().__init__(status_code=500, detail=detail)
 
 if __name__ == "__main__":
-  uvicorn.run("app.api.main:app", host="0.0.0.0", port=8000, reload=True, access_log=False, timeout_keep_alive=600)
+  uvicorn.run("app.api.main:app", host="0.0.0.0", port=8000, reload=True, access_log=True, timeout_keep_alive=600)
