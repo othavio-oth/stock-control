@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from pytest import Session
 from app.models.tickets import CostCenter
-from app.repository.stock.stock_movement_repository import create_system_in_movement, get_all_product_quantities_in_system, get_all_stock_movements, get_cost_center_stock, get_monthly_sales_losses_stats, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product
+from app.repository.stock.stock_movement_repository import create_system_in_movement, get_all_product_quantities_in_system, get_all_stock_movements, get_cost_center_stock, get_monthly_sales_losses_stats, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product, register_stock_loss
 
 class StockMovementService:
     
@@ -40,3 +40,7 @@ class StockMovementService:
     @staticmethod
     def get_monthly_sales_losses_stats_service(db: Session, year: int = None):
         return get_monthly_sales_losses_stats(db, year)
+    
+    @staticmethod
+    def register_stock_loss_service(db, loss_data):
+        return register_stock_loss(db, loss_data)

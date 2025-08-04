@@ -1,7 +1,7 @@
 from fastapi import Query
 
-from app.controller.products_controller.product_controller import get_all_products_no_pagination_controller, get_product, search_products_by_term_controller
-from app.schemas.list_all_schemas.list_all_responses import AllProductsResponse
+from app.controller.products_controller.product_controller import get_all_products_no_pagination_controller, get_product, get_product_entry_history_controller, search_products_by_term_controller
+from app.schemas.list_all_schemas.list_all_responses import AllEntriesProductsResponse, AllProductsResponse
 from app.schemas.products_schemas.products_schemas import ProductsPageResponse
 from . import *
 
@@ -43,4 +43,6 @@ def search_products(
 def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
     return get_product(product_id, db)
 
-
+@router.get("/products/{product_id}/entry-history", response_model=AllEntriesProductsResponse, tags=["Products"])
+def get_product_entry_history(product_id: int,page: int = Query(1, ge=1),db: Session = Depends(get_db)):
+    return get_product_entry_history_controller(product_id,page,db)

@@ -23,3 +23,7 @@ def get_cost_center_stock_controller(cost_center_id: int, db):
 
 def get_monthly_sales_losses_stats_controller(db: Session, year: int = None):
     return StockMovementService.get_monthly_sales_losses_stats_service(db, year)
+
+
+def register_stock_loss_controller(db, loss_data):
+    return StockMovementService.register_stock_loss_service(db, loss_data)

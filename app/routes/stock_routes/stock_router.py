@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Any
-from app.controller.stock_controller.stock_movement_controller import create_system_in_movement, get_all_movements, get_cost_center_stock_controller, get_current_product_quantity, get_monthly_sales_losses_stats_controller, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product
-from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead, SystemInStockMovement, TotalProductStockResponse
+from app.controller.stock_controller.stock_movement_controller import create_system_in_movement, get_all_movements, get_cost_center_stock_controller, get_current_product_quantity, get_monthly_sales_losses_stats_controller, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product, register_stock_loss_controller
+from app.models.stockMovement import StockMovement
+from app.schemas.stock_schemas.stock_movement_schema import StockMovementLost, StockMovementRead, SystemInStockMovement, TotalProductStockResponse
 from . import *
 router = APIRouter()
 
@@ -53,3 +54,14 @@ def get_cost_center_stock(
 ):
     return get_cost_center_stock_controller(cost_center_id, db)
 
+
+@router.post("/stock-movements/losses",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
+def create_loss_record(
+    loss_data: StockMovementLost,
+    db: Session = Depends(get_db)):
+    try:
+        return register_stock_loss_controller(db, loss_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e))

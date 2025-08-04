@@ -1,5 +1,6 @@
+from typing import Optional
 from fastapi import HTTPException
-from app.repository.products.products_repository import get_all_active_products, create_product, get_all_products_no_pagination, search_products_by_term, update_product, delete_product, get_product_by_id
+from app.repository.products.products_repository import get_all_active_products, create_product, get_all_products_no_pagination, get_system_in_movements_by_product, search_products_by_term, update_product, delete_product, get_product_by_id
 from sqlalchemy.orm import Session
 from app.models.groups import Product
 
@@ -37,3 +38,7 @@ class ProductService:
     @staticmethod
     def get_all_products_no_pagination_service(db):
         return get_all_products_no_pagination(db)
+    
+    @staticmethod
+    def get_product_entry_history(product_id: int, page: int, db: Session):
+        return  get_system_in_movements_by_product(product_id,page,db)

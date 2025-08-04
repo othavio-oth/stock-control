@@ -1,5 +1,9 @@
 from datetime import datetime
+from typing import Any, Dict, Optional
+from fastapi import HTTPException
 from sqlalchemy import or_
+
+from app.models.stockMovement import MovementType, StockMovement
 from . import *
 
 def get_all_products_no_pagination(db):
@@ -16,6 +20,43 @@ def get_all_active_products(page,db):
 
     return {
         "items": products,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
+    
+
+
+def get_system_in_movements_by_product(product_id: int, page: int, db: Session) -> Dict[str, Any]:
+    """
+    Retorna o histórico de entradas de um produto com paginação
+    (registros mais recentes primeiro)
+    """
+    page_size = 20
+    offset = (page - 1) * page_size
+    
+    # Query base com ordenação por data decrescente
+    query = db.query(StockMovement).filter(
+        StockMovement.movement_type == MovementType.SYSTEM_IN.value,
+        StockMovement.product_id == product_id
+    ).order_by(StockMovement.created_at.desc())
+    
+    total = query.count()
+    movements = query.offset(offset).limit(page_size).all()
+    
+    # Obter informações do produto
+    product = db.query(Product).filter(Product.id == product_id).first()
+    
+    total_pages = (total + page_size - 1) // page_size
+
+    return {
+        "items": movements,
+        "product": {
+            "id": product.id,
+            "description": product.description,
+            "custom_id": product.custom_id
+        },
         "total": total,
         "page": page,
         "page_size": page_size,

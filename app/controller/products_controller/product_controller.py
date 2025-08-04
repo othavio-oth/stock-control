@@ -1,3 +1,4 @@
+from typing import Optional
 from . import *
 
 def list_products(page,db):
@@ -26,3 +27,6 @@ def search_products_by_term_controller(term,page, db):
 
 def get_all_products_no_pagination_controller(db):
     return ProductService.get_all_products_no_pagination_service(db)
+
+def get_product_entry_history_controller(product_id: int, page: int, db: Session):
+    return ProductService.get_product_entry_history(product_id,page,db)

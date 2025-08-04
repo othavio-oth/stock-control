@@ -1,7 +1,8 @@
 from typing import List
 from pydantic import BaseModel
 
-from app.schemas.products_schemas.products_schemas import ProductResponse
+from app.schemas.products_schemas.products_schemas import ProductEntryHistoryResponse, ProductResponse
+from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead
 from app.schemas.tickets_schemas.cost_center_schemas import CostCenterResponse
 from app.schemas.tickets_schemas.tickets_schemas import TicketResponse
 
@@ -20,3 +21,8 @@ class AllCostCentersResponse(ListAllResponse):
 
 class AllTicketsResponse(ListAllResponse):
     items: List[TicketResponse]
+    
+    
+class AllEntriesProductsResponse(ListAllResponse):
+    items: List[StockMovementRead]
+    product: ProductEntryHistoryResponse

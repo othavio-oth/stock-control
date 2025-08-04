@@ -25,6 +25,11 @@ class ProductResponse(ProductBase):
     id: int
     is_active: Optional[bool] = True
     
+class ProductEntryHistoryResponse(BaseModel):
+    id: int
+    description: str
+    custom_id: int
+    
 class ProductsPageResponse(BaseModel):
     items: List[ProductResponse]
     total: int

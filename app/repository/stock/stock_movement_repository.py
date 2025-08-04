@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from sqlalchemy.orm import Session
 from sqlalchemy import case, extract, func
 from app.models.tickets import Ticket, TicketProduct
-from app.schemas.stock_schemas.stock_movement_schema import  TotalProductStockResponse
+from app.schemas.stock_schemas.stock_movement_schema import  StockMovementLost, TotalProductStockResponse
 from app.models.stockMovement import MovementType
 from sqlalchemy import and_ 
 from datetime import datetime
@@ -16,7 +16,6 @@ def get_all_stock_movements(db: Session):
 
 
 def create_system_in_movement(system_in_data, db) -> StockMovement:
-    # TODO : implementar validação
     movement = StockMovement(
         product_id=system_in_data.product_id,
         quantity=system_in_data.quantity,
@@ -231,3 +230,32 @@ def get_monthly_sales_losses_stats(db: Session, year: int = None) -> List[Dict[s
         stats[month]["losses"] = amount or 0
     
     return list(stats.values())
+
+
+
+def register_stock_loss(
+    db: Session, 
+    loss_data: StockMovementLost
+) -> StockMovement:
+
+
+    # Validação adicional
+    if loss_data.quantity <= 0:
+        raise ValueError("A quantidade deve ser maior que zero")
+    
+    try:
+        # Cria o movimento de perda
+        loss_movement = StockMovement(
+            **loss_data.model_dump(exclude_unset=True),
+            created_at=loss_data.created_at or datetime.now()
+        )
+        
+        db.add(loss_movement)
+        db.commit()
+        db.refresh(loss_movement)
+        
+        return loss_movement
+        
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Falha ao registrar perda: {str(e)}")
