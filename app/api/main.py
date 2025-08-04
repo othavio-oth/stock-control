@@ -19,27 +19,11 @@ import os
 import json
 from typing import List
 
-def get_allowed_origins() -> List[str]:
-    # Valor padrão garantido
-    default_origins = ["http://localhost:3000"]
-    
-    # Tenta carregar da variável de ambiente
-    env_origins = os.getenv("ALLOWED_ORIGINS")
-    
-    if not env_origins:
-        return default_origins
-    
-    try:
-        if env_origins.startswith("'") and env_origins.endswith("'"):
-            env_origins = env_origins[1:-1]
-            
-        return list(set(json.loads(env_origins) + default_origins))
-    except json.JSONDecodeError:
-        return default_origins 
+
     
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_allowed_origins(),
+    allow_origins = json.loads(os.getenv("ALLOWED_ORIGINS", "[]")),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
