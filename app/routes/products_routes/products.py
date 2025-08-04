@@ -1,6 +1,6 @@
 from fastapi import Query
 
-from app.controller.products_controller.product_controller import get_all_products_no_pagination_controller, get_product, get_product_entry_history_controller, get_product_sales_controller, search_products_by_term_controller
+from app.controller.products_controller.product_controller import get_all_products_no_pagination_controller, get_product, get_product_entry_history_controller, search_products_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllEntriesProductsResponse, AllProductsResponse
 
 from . import *
