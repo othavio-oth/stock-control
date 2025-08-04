@@ -1,8 +1,9 @@
 from fastapi import Query
 
-from app.controller.products_controller.product_controller import get_all_products_no_pagination_controller, get_product, get_product_entry_history_controller, search_products_by_term_controller
+from app.controller.products_controller.product_controller import get_all_products_no_pagination_controller, get_product, get_product_entry_history_controller, get_product_sales_controller, search_products_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllEntriesProductsResponse, AllProductsResponse
 from app.schemas.products_schemas.products_schemas import ProductsPageResponse
+from app.schemas.products_schemas.sales_schemas import ProductSalesAnalyticsResponse
 from . import *
 
 router = APIRouter()
@@ -46,3 +47,13 @@ def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
 @router.get("/products/{product_id}/entry-history", response_model=AllEntriesProductsResponse, tags=["Products"])
 def get_product_entry_history(product_id: int,page: int = Query(1, ge=1),db: Session = Depends(get_db)):
     return get_product_entry_history_controller(product_id,page,db)
+
+
+# @router.get("/products/{product_id}/sales", response_model=ProductSalesAnalyticsResponse, tags=["Products"])
+# def get_product_sales(
+#     product_id: int,
+#     cost_center_id: int,
+#     period_days: int = Query(30, gt=0),
+#     db: Session = Depends(get_db)
+# ):
+#     return get_product_sales_controller(product_id, cost_center_id, period_days, db)
