@@ -20,3 +20,6 @@ def get_current_product_quantity(db):
 
 def get_cost_center_stock_controller(cost_center_id: int, db):
     return StockMovementService.get_cost_center_stock_service(cost_center_id, db)
+
+def get_monthly_sales_losses_stats_controller(db: Session, year: int = None):
+    return StockMovementService.get_monthly_sales_losses_stats_service(db, year)

@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from pytest import Session
 from app.models.tickets import CostCenter
-from app.repository.stock.stock_movement_repository import create_system_in_movement, get_all_product_quantities_in_system, get_all_stock_movements, get_cost_center_stock, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product
+from app.repository.stock.stock_movement_repository import create_system_in_movement, get_all_product_quantities_in_system, get_all_stock_movements, get_cost_center_stock, get_monthly_sales_losses_stats, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product
 
 class StockMovementService:
     
@@ -36,19 +36,7 @@ class StockMovementService:
 
         return get_cost_center_stock( cost_center_id, db)
     
-    # @staticmethod
-    # def (ticket_product:TicketProduct, db:Session):
-    #     if not ticket_product.quantity_sold:
-    #         raise ValueError("O TicketProduct precisa ter uma quantidade para gerar uma movimentação.")
 
-    #     movement = StockMovement(
-    #         product_id=ticket_product.product_id,
-    #         quantity=ticket_product.quantity,
-    #         movement_type=MovementType.SOLD.value,
-    #         cost_center_id=cost_center_id,
-    #         created_at=datetime.now()
-    #     )
-    #     db.add(movement)
-    #     db.commit()
-    #     db.refresh(movement)
-    #     return movement
+    @staticmethod
+    def get_monthly_sales_losses_stats_service(db: Session, year: int = None):
+        return get_monthly_sales_losses_stats(db, year)

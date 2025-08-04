@@ -75,7 +75,11 @@ def get_products_by_ticket(db, ticket_id):
     return db.query(TicketProduct).filter(TicketProduct.ticket_id == ticket_id).order_by(TicketProduct.id).all()
 
 def add_product_to_ticket(db, product_data):
-    ticket_product = TicketProduct(**product_data.dict())
+    product = db.query(Product).filter(Product.id == product_data.product_id).first()
+    ticket_product = TicketProduct(
+    **product_data.dict(),
+    entry_price=product.cost_inside  
+)
     db.add(ticket_product)
     db.commit()
     db.refresh(ticket_product)

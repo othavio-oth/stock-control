@@ -10,6 +10,7 @@ class TicketProductBase(BaseModel):
     quantity_sold: Optional[float] = 0
     sold_until: Optional[date] = None
     unit_price: Optional[float] = None
+    entry_price: Optional[float] = None
 
     class Config:
         from_attributes = True

@@ -1,7 +1,8 @@
-from typing import List
+from collections import defaultdict
+from typing import Any, Dict, List
 from sqlalchemy.orm import Session
-from sqlalchemy import case, func
-from app.models.tickets import TicketProduct
+from sqlalchemy import case, extract, func
+from app.models.tickets import Ticket, TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  TotalProductStockResponse
 from app.models.stockMovement import MovementType
 from sqlalchemy import and_ 
@@ -183,3 +184,50 @@ def get_cost_center_stock(cost_center_id: int, db: Session):
 
 
     return stock
+
+def get_monthly_sales_losses_stats(db: Session, year: int = None) -> List[Dict[str, Any]]:
+    """
+    Controller para estatísticas mensais de vendas e perdas
+    """
+    if year is None:
+        year = datetime.now().year
+    
+    month_map = {
+        1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
+        5: "May", 6: "Jun", 7: "Jul", 8: "Aug",
+        9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"
+    }
+    
+    # Query para vendas
+    sales = db.query(
+        extract('month', Ticket.order_date).label('month'),
+        func.sum(TicketProduct.quantity_sold).label('sales')
+    ).join(Ticket).filter(
+        and_(
+            TicketProduct.quantity_sold > 0,
+            extract('year', Ticket.order_date) == year
+        )
+    ).group_by(extract('month', Ticket.order_date)).all()
+    
+    # Query para perdas
+    losses = db.query(
+        extract('month', StockMovement.created_at).label('month'),
+        func.sum(StockMovement.quantity).label('losses')
+    ).filter(
+        and_(
+            StockMovement.movement_type == MovementType.LOST,
+            extract('year', StockMovement.created_at) == year
+        )
+    ).group_by(extract('month', StockMovement.created_at)).all()
+    
+    # Consolidar resultados
+    stats = {month: {"month": name, "sales": 0, "losses": 0} 
+            for month, name in month_map.items()}
+    
+    for month, amount in sales:
+        stats[month]["sales"] = amount or 0
+        
+    for month, amount in losses:
+        stats[month]["losses"] = amount or 0
+    
+    return list(stats.values())
