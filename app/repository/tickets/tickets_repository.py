@@ -69,7 +69,7 @@ def delete_ticket(db, ticket_id):
     if ticket:
         db.delete(ticket)
         db.commit()
-    return ticket
+    return None
 
 def get_products_by_ticket(db, ticket_id):
     return db.query(TicketProduct).filter(TicketProduct.ticket_id == ticket_id).order_by(TicketProduct.id).all()

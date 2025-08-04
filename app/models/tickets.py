@@ -14,8 +14,8 @@ class CostCenter(Base):
     status = Column(String, default=True)
     is_active = Column(Boolean, default=True, nullable=True)
     deleted_at = Column(DateTime, nullable=True)
-    sellers = relationship("Seller", back_populates="cost_center", lazy='select') 
-    stock_movements = relationship("StockMovement", back_populates="cost_center")
+    sellers = relationship("Seller", back_populates="cost_center", lazy='select', cascade="all, delete-orphan") 
+    stock_movements = relationship("StockMovement", back_populates="cost_center", cascade="all, delete-orphan")
 
 
 
@@ -53,7 +53,8 @@ class Ticket(Base):
     cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
     order_date = Column(Date, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    products = relationship("TicketProduct", back_populates="ticket")
+    products = relationship("TicketProduct", back_populates="ticket",     cascade="all, delete-orphan"
+)
 
     
     class Config:

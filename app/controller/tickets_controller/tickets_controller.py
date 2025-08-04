@@ -13,7 +13,11 @@ def edit_ticket(ticket_id, ticket_data, db):
     return TicketService.edit_ticket(db, ticket_id, ticket_data)
 
 def delete_ticket(ticket_id, db):
-    return TicketService.remove_ticket(db, ticket_id)
+    try: 
+        TicketService.remove_ticket(db, ticket_id)
+        return {"message": "Ticket removido com sucesso."}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 def add_product_to_ticket_controller(product_data, db):
     return TicketService.add_product(db, product_data)

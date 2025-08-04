@@ -31,7 +31,7 @@ class TicketService:
     @staticmethod
     def remove_ticket(db, ticket_id):
         if not get_ticket_by_id(db, ticket_id):
-            raise ValueError("Ticket não encontrada.")
+            raise ValueError("Ticket não encontrado.")
         return delete_ticket(db, ticket_id)
 
     @staticmethod

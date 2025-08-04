@@ -23,3 +23,6 @@ def delete_product(product_id, db):
    
 def search_products_by_term_controller(term,page, db):
     return ProductService.search_products(term,page,db)
+
+def get_all_products_no_pagination_controller(db):
+    return ProductService.get_all_products_no_pagination_service(db)
