@@ -16,8 +16,8 @@ from app.controller.users_controller.roles_controller import list_roles, create_
 from app.schemas.users_schemas.user_schema import UserResponse, UserUpdate, UserCreate, UserResponseList
 from app.controller.users_controller.user_controller import create_user, list_users, read_user, update_user, delete_user
 
-from app.schemas.products_schemas.group_schemas import GroupBase, GroupResponse
-from app.controller.products_controller.groups_controller import create_group, list_groups, delete_group, edit_group
+from app.schemas.products_schemas.retail_chain_schemas import RetailChainBase, RetailChainResponse
+from app.controller.products_controller.chain_controller import create_chain, list_chains,delete_chain, edit_chain
 
 from app.schemas.products_schemas.unit_measurement_schemas import UnitMeasurementBase, UnitMeasurementResponse
 from app.controller.products_controller.unit_measurement_controller import create_unit_measurement, list_unit_measurement, delete_unit_measurement, edit_unit_measurement
@@ -25,14 +25,14 @@ from app.controller.products_controller.unit_measurement_controller import creat
 from app.schemas.products_schemas.unit_conversion_schema import ConversionBase, ConversionResponse, ConversionCreate, ConversionUpdate
 from app.controller.products_controller.unit_conversion_controller import create_conversion, list_conversions, delete_conversion, edit_conversion
 
-from app.schemas.products_schemas.type_registration_schema import TypeRegistrationBase, TypeRegistrationResponse, TypeRegistrationCreate, TypeRegistrationUpdate
-from app.controller.products_controller.type_registration_controller import create_type_registration, delete_type_registration, edit_type_registration, list_type_registrations
+from app.schemas.products_schemas.catogory_schema import  Category, CategoryResponse, CategoryCreate, CategoryUpdate
+from app.controller.products_controller.category_controller import create_category, list_categories, delete_category, edit_category
+
 
 from app.schemas.products_schemas.products_schemas import ProductBase, ProductCreate, ProductUpdate, ProductResponse
 from app.controller.products_controller.product_controller import create_product, list_products, edit_product, delete_product
 
-from app.schemas.products_schemas.cost_taxation_schemas import CostTaxationBase, CostTaxationResponse, CostTaxationCreate, CostTaxationUpdate
-from app.controller.products_controller.cost_taxation_controller import create_cost_taxation, list_cost_taxations, edit_cost_taxation, delete_cost_taxation
+
 
 __all__= [
     "APIRouter",
@@ -88,12 +88,13 @@ __all__= [
     "update_user",
     "delete_user",
     
-    "GroupBase",
-    "GroupResponse",
-    "create_group",
-    "list_groups",
-    "edit_group",
-    "delete_group",
+    "RetailChainBase",
+    "RetailChainResponse",
+    "create_chain",
+    "list_chains",
+    "edit_chain",
+    "delete_chain",
+
     
     "UnitMeasurementBase",
     "UnitMeasurementResponse",
@@ -110,15 +111,16 @@ __all__= [
     "list_conversions",
     "edit_conversion",
     "delete_conversion",
+
     
-    "TypeRegistrationBase",
-    "TypeRegistrationResponse",
-    "TypeRegistrationCreate",
-    "TypeRegistrationUpdate",
-    "create_type_registration",
-    "delete_type_registration",
-    "edit_type_registration",
-    "list_type_registrations",
+    "Category",
+    "CategoryResponse",
+    "CategoryCreate",
+    "CategoryUpdate",
+    "create_category",    
+    "list_categories",
+    "delete_category",
+    "edit_category",
     
     "ProductBase",
     "ProductCreate",
@@ -129,13 +131,5 @@ __all__= [
     "list_products",
     "edit_product",
     "delete_product",
-    
-    "CostTaxationBase",
-    "CostTaxationResponse",
-    "CostTaxationCreate",
-    "CostTaxationUpdate",
-    "create_cost_taxation",
-    "list_cost_taxations",
-    "edit_cost_taxation",
-    "delete_cost_taxation",
+
 ]

@@ -1,16 +1,16 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class GroupBase(BaseModel):
+class Category(BaseModel):
     name: str
     description: Optional[str] = None
     status: bool = True
 
-class GroupCreate(GroupBase):
+class CategoryCreate(Category):
     pass
 
-class GroupUpdate(GroupBase):
+class CategoryUpdate(Category):
     pass
 
-class GroupResponse(GroupBase):
+class CategoryResponse(Category):
     id: int

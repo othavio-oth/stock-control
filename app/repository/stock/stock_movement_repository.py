@@ -8,7 +8,7 @@ from app.models.stockMovement import MovementType
 from sqlalchemy import and_ 
 from datetime import datetime
 from app.models.stockMovement import StockMovement
-from app.models.groups import Product
+from app.models.product import Product
 
 
 def get_all_stock_movements(db: Session):

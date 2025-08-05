@@ -1,4 +1,4 @@
-from app.models.groups import UnitMeasurement
+from app.models.product import UnitMeasurement
 from app.repository.products.unit_measurement_repository import create_unit, delete_unit, get_unit_by_id, update_unit, get_all_unit
 
 class UnitMeasurementService:

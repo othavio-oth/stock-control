@@ -11,11 +11,14 @@ class CostCenter(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(250), unique=True, nullable=False)
     description = Column(String, nullable=True)
-    status = Column(String, default=True)
-    is_active = Column(Boolean, default=True, nullable=True)
-    deleted_at = Column(DateTime, nullable=True)
     sellers = relationship("Seller", back_populates="cost_center", lazy='select', cascade="all, delete-orphan") 
     stock_movements = relationship("StockMovement", back_populates="cost_center", cascade="all, delete-orphan")
+    retail_chain_id = Column(Integer, ForeignKey("retail_chains.id"), nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+    retail_chain = relationship("RetailChain", back_populates="cost_centers")
+
 
 
 
@@ -27,17 +30,10 @@ class TicketProduct(Base):
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity_ordered = Column(Integer, nullable=False)
-    quantity_sold = Column(Integer, default=0)
     unit_price = Column(Numeric(10, 2))
     entry_price = Column(Numeric(10, 2))
-    sold_until = Column(Date)
     ticket = relationship("Ticket", back_populates="products")
     product = relationship("Product")
-    
-    @property
-    def description(self):
-        return self.product.description if self.product else None
-
 
     class Config:
         from_attributes = True

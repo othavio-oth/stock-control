@@ -5,7 +5,6 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_
 
 from app.models.stockMovement import MovementType, StockMovement
-from app.models.tickets import CostCenter, Ticket, TicketProduct
 from . import *
 
 def get_all_products_no_pagination(db):

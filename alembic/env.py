@@ -28,7 +28,7 @@ if config.config_file_name is not None:
 #target_metadata = None
 
 from app.models.user import User
-from app.models.groups import Group, UnitMeasurement, UnitConversion, TypeRegistration, Product, CostTaxation
+from app.models.product import  UnitMeasurement, UnitConversion, Product, Category, RetailChain
 from app.models.tickets import CostCenter
 from app.models.seller import Seller
 from app.database.base import Base

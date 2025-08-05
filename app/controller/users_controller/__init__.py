@@ -18,8 +18,7 @@ from app.service.users_service.user_service import create_new_user, get_user_det
 from app.schemas.users_schemas.user_schema import UserCreate, UserUpdate
 
 # Groups Imports
-from app.service.products_service.groups_service import GroupService
-from app.schemas.products_schemas.group_schemas import GroupBase, GroupResponse
+from app.schemas.products_schemas.retail_chain_schemas import RetailChainBase, RetailChainResponse
 
 # Unit Measurements Imports
 from app.service.products_service.unit_measurement_service import UnitMeasurementService
@@ -30,16 +29,15 @@ from app.service.products_service.unit_conversion_service import ConversionServi
 from app.schemas.products_schemas.unit_conversion_schema import ConversionBase, ConversionResponse
 
 # Type Registration Imports
-from app.service.products_service.type_registration_service import TypeRegistrationService
-from app.schemas.products_schemas.type_registration_schema import TypeRegistrationBase, TypeRegistrationResponse
+from app.service.products_service.categories_service import CategoryService
+from app.schemas.products_schemas.catogory_schema import Category, CategoryResponse, CategoryCreate, CategoryUpdate
 
 # Products Imports
 from app.service.products_service.products_service import ProductService
 from app.schemas.products_schemas.products_schemas import ProductBase, ProductCreate, ProductUpdate, ProductResponse
 
-# Cost Taxation Imports
-from app.service.products_service.cost_taxation_service import CostTaxationService
-from app.schemas.products_schemas.cost_taxation_schemas import CostTaxationBase, CostTaxationResponse, CostTaxationCreate, CostTaxationUpdate
+
+
 
 __all__ = [
     "Depends",
@@ -66,9 +64,9 @@ __all__ = [
     "UserCreate",
     "UserUpdate",
     
-    "GroupService",
-    "GroupBase",
-    "GroupResponse",
+    "RetailChainBase",
+    "RetailChainResponse",
+    
     
     "UnitMeasurementService",
     "UnitMeasurementBase",
@@ -77,20 +75,16 @@ __all__ = [
     "ConversionService",
     "ConversionBase",
     "ConversionResponse",
-    
-    "TypeRegistrationService",
-    "TypeRegistrationBase",
-    "TypeRegistrationResponse",
+    "CategoryService",
+    "Category",
+    "CategoryResponse",
+    "CategoryCreate",
+    "CategoryUpdate",
     
     "ProductBase",
     "ProductService",
     "ProductCreate",
     "ProductUpdate",
     "ProductResponse",
-    
-    "CostTaxationService",
-    "CostTaxationBase",
-    "CostTaxationResponse",
-    "CostTaxationCreate",
-    "CostTaxationUpdate",
+
 ]

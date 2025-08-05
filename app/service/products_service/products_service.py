@@ -1,9 +1,8 @@
-from typing import Optional
 from fastapi import HTTPException
 from app.models.tickets import CostCenter
 from app.repository.products.products_repository import get_all_active_products, create_product, get_all_products_no_pagination, get_system_in_movements_by_product, search_products_by_term, update_product, delete_product, get_product_by_id
 from sqlalchemy.orm import Session
-from app.models.groups import Product
+from app.models.product import Product
 class ProductService:
     @staticmethod
     def list_products(page,db):

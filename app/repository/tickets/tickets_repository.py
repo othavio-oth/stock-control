@@ -78,7 +78,6 @@ def add_product_to_ticket(db, product_data):
     product = db.query(Product).filter(Product.id == product_data.product_id).first()
     ticket_product = TicketProduct(
     **product_data.dict(),
-    entry_price=product.cost_inside  
 )
     db.add(ticket_product)
     db.commit()
