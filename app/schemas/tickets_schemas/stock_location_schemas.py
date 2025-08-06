@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
+
 
 class StockLocationBase(BaseModel):
     name: str

@@ -1,5 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
+
+from app.schemas.products_schemas.products_schemas import ProductResponse
 
 class Category(BaseModel):
     name: str
@@ -14,3 +16,4 @@ class CategoryUpdate(Category):
 
 class CategoryResponse(Category):
     id: int
+    products: List[ProductResponse] 

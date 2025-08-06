@@ -7,7 +7,8 @@ from app.schemas.users_schemas.seller_schema import  SellerWithUser
 class CostCenterBase(BaseModel):
     name: str
     description: Optional[str] = None
-    status: Optional[bool] = True
+    retail_chain_id: int
+
 
 class CostCenterCreate(CostCenterBase):
     pass
@@ -17,7 +18,6 @@ class CostCenterUpdate(CostCenterBase):
 
 class CostCenterResponse(CostCenterBase):
     id: int
-    sellers: List[SellerWithUser] = []  
     
     class Config:
         from_attributes = True

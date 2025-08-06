@@ -1,8 +1,9 @@
 from app.models.product import Category
 from . import *
+from sqlalchemy.orm import joinedload
 
 def get_all_categories(db):
-    return db.query(Category).order_by(Category.id).all()
+    return db.query(Category).options(joinedload(Category.products)).filter(Category.status == True).order_by(Category.id).all()
 
 def get_category_by_id(db, category_id):
     return db.query(Category).filter(Category.id == category_id).first()

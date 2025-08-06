@@ -1,5 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
+
+from app.schemas.tickets_schemas.cost_center_schemas import CostCenterResponse
 
 class RetailChainBase(BaseModel):
     name: str
@@ -14,3 +16,4 @@ class RetailChainUpdate(RetailChainBase):
 
 class RetailChainResponse(RetailChainBase):
     id: int
+    cost_centers:List[CostCenterResponse]

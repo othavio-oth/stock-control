@@ -41,6 +41,8 @@ class Category(Base):
     name = Column(String(250), unique=True, nullable=False)
     description = Column(String, nullable=True)
     status = Column(Boolean, default=True)
+    
+    products = relationship("Product", back_populates="category")
 
 class Product(Base):
     __tablename__ = "products"
@@ -48,11 +50,11 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     custom_id = Column(String, unique=True, nullable=True)
     name = Column(String, nullable=False)
-    category = Column(Integer, ForeignKey("categories.id"), nullable=True)
-    retail_chain_id = Column(Integer, ForeignKey("retail_chains.id"), nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     is_active = Column(Boolean, default=True, nullable=True)  # Campo de status
     deleted_at = Column(DateTime, nullable=True)
     
+    category = relationship("Category", back_populates="products")
     stock_movements = relationship("StockMovement", back_populates="product")
     cost_history = relationship("ProductCostHistory", back_populates="product",
                                 order_by="ProductCostHistory.start_date.desc()",
@@ -62,6 +64,7 @@ class Product(Base):
                                  cascade="all, delete-orphan")
     @hybrid_property
     def current_cost(self):
+        
         active = next((c for c in self.cost_history if c.end_date is None), None)
         return active.cost if active else None
     

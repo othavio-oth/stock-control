@@ -1,11 +1,12 @@
 from app.models.product import RetailChain
 from . import *
+from sqlalchemy.orm import joinedload
 
 def get_all_chains(db):
-    return db.query(RetailChain).order_by(RetailChain.id).all()
+    return db.query(RetailChain).options(joinedload(RetailChain.cost_centers)).order_by(RetailChain.id).all()
 
 def get_chain_by_id(db, chain_id):
-    return db.query(RetailChain).filter(RetailChain.id == chain_id).firRetailChain
+    return db.query(RetailChain).filter(RetailChain.id == chain_id).options(joinedload(RetailChain.cost_centers)).firRetailChain
 def create_chain(db, chain_data):
     chain = RetailChain(**chain_data.dict())
     db.add(chain)
