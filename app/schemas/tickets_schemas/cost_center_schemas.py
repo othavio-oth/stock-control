@@ -1,23 +1,26 @@
 from pydantic import BaseModel
 from typing import Optional
-from typing import List
 
-from app.schemas.users_schemas.seller_schema import  SellerWithUser
+from app.schemas.products_schemas.commom_schemas import RetailChainResponseWithoutCostCenters
+
 
 class CostCenterBase(BaseModel):
     name: str
     description: Optional[str] = None
-    retail_chain_id: int
 
 
 class CostCenterCreate(CostCenterBase):
+    retail_chain_id: int
+
     pass
 
 class CostCenterUpdate(CostCenterBase):
+    retail_chain_id: int
     pass
 
 class CostCenterResponse(CostCenterBase):
     id: int
+    retail_chain:RetailChainResponseWithoutCostCenters
     
     class Config:
         from_attributes = True

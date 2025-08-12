@@ -7,62 +7,27 @@ from sqlalchemy import and_, func, or_
 from app.models.stockMovement import MovementType, StockMovement
 from . import *
 
-def get_all_products_no_pagination(db):
-    products = db.query(Product).filter(Product.is_active == True).order_by(Product.id).all()
-    return products
-    
-def get_all_active_products(page,db):
-    page_size = 20
-    offset = (page - 1) * page_size
+def get_all_products(page,db):
     query = db.query(Product).filter(Product.is_active == True)
-    total = query.count()
-    products = query.order_by(Product.id).offset(offset).limit(page_size).all()
-    total_pages = (total + page_size - 1) // page_size
-
-    return {
-        "items": products,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages
-    }
+    if page is not None:
+        page_size = 20
+        offset = (page - 1) * page_size
+        total = db.query(Product).count()
+        products = query.offset(offset).limit(page_size).all()
+        total_pages = (total + page_size - 1) // page_size
+        return {
+            "items": products,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages
+        }
+    
+ 
+    return query.all()
     
 
 
-def get_system_in_movements_by_product(product_id: int, page: int, db: Session) -> Dict[str, Any]:
-    """
-    Retorna o histórico de entradas de um produto com paginação
-    (registros mais recentes primeiro)
-    """
-    page_size = 20
-    offset = (page - 1) * page_size
-    
-    # Query base com ordenação por data decrescente
-    query = db.query(StockMovement).filter(
-        StockMovement.movement_type == MovementType.SYSTEM_IN.value,
-        StockMovement.product_id == product_id
-    ).order_by(StockMovement.created_at.desc())
-    
-    total = query.count()
-    movements = query.offset(offset).limit(page_size).all()
-    
-    # Obter informações do produto
-    product = db.query(Product).filter(Product.id == product_id).first()
-    
-    total_pages = (total + page_size - 1) // page_size
-
-    return {
-        "items": movements,
-        "product": {
-            "id": product.id,
-            "description": product.description,
-            "custom_id": product.custom_id
-        },
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages
-    }
 
 def get_product_by_id(product_id, db):
     return db.query(Product).filter(Product.id == product_id, Product.is_active==True).first()
@@ -99,7 +64,7 @@ def search_products_by_term( search_term: str,page:int,db: Session):
     base_query = db.query(Product).filter(
             or_(
                 Product.custom_id == int(search_term) if search_term.isdigit() else False,
-                Product.description.ilike(f"%{search_term}%"),
+                Product.name.ilike(f"%{search_term}%"),
             )
         )
     total = base_query.count()

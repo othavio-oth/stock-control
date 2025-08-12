@@ -6,7 +6,8 @@ def get_all_chains(db):
     return db.query(RetailChain).options(joinedload(RetailChain.cost_centers)).order_by(RetailChain.id).all()
 
 def get_chain_by_id(db, chain_id):
-    return db.query(RetailChain).filter(RetailChain.id == chain_id).options(joinedload(RetailChain.cost_centers)).firRetailChain
+    return db.query(RetailChain).filter(RetailChain.id == chain_id).options(joinedload(RetailChain.cost_centers)).first()
+
 def create_chain(db, chain_data):
     chain = RetailChain(**chain_data.dict())
     db.add(chain)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Index, Integer, String, Boolean, Float, ForeignKey, Date, Numeric, UniqueConstraint, func, select
+from sqlalchemy import CheckConstraint, Column, DateTime, Index, Integer, String, Boolean, Float, ForeignKey, Date, Numeric, UniqueConstraint, func, select
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -12,7 +12,7 @@ class RetailChain(Base):
     status = Column(Boolean, default=True)
     
     cost_centers = relationship("CostCenter", back_populates="retail_chain")
-    price_history = relationship("ProductPriceHistory", back_populates="chain",
+    price_history = relationship("ProductPriceHistory", back_populates="retail_chain",
                                  order_by="ProductPriceHistory.start_date.desc()",
                                  cascade="all, delete-orphan")
 
@@ -81,32 +81,54 @@ class ProductCostHistory(Base):
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     cost = Column(Numeric(10, 2), nullable=False)
-    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
-
     start_date = Column(DateTime, nullable=False, server_default=func.now())
     end_date = Column(DateTime, nullable=True, index=True)  # NULL = vigente
 
     product = relationship("Product", back_populates="cost_history")
-    cost_center = relationship("CostCenter")
 
 
 class ProductPriceHistory(Base):
     __tablename__ = "product_price_history"
 
     id = Column(Integer, primary_key=True)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
-    chain_id = Column(Integer, ForeignKey("retail_chains.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    
+    # Hierarquia de preços (apenas UM pode ser preenchido):
+    retail_chain_id = Column(Integer, ForeignKey("retail_chains.id"), nullable=True)  # Preço para toda a rede
+    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=True)    # Preço específico para 1 cliente
+    
+    retail_chain = relationship("RetailChain")
     price = Column(Numeric(10, 2), nullable=False)
-    start_date = Column(DateTime, nullable=False, server_default=func.now())
-    end_date = Column(DateTime, nullable=True, index=True)  # NULL = vigente
+    start_date = Column(DateTime, default=func.now())
+    end_date = Column(DateTime, nullable=True)  # NULL = preço atual
 
-    product = relationship("Product", back_populates="price_history")
-    chain = relationship("RetailChain", back_populates="price_history")
-
+    # Validação: só permite vincular a rede OU cliente, não ambos
     __table_args__ = (
-        # evita inserções duplicadas idênticas; a unicidade do "vigente" é garantida pela lógica de app
-        UniqueConstraint("product_id", "chain_id", "start_date", name="uix_product_chain_start"),
-        Index("ix_product_chain_active", "product_id", "chain_id", "end_date")
+        CheckConstraint(
+            '(retail_chain_id IS NOT NULL AND cost_center_id IS NULL) OR (retail_chain_id IS NULL AND cost_center_id IS NOT NULL)',
+            name='check_price_hierarchy'
+        ),
+        UniqueConstraint('product_id', 'retail_chain_id', 'start_date', name='uix_product_chain_start'),
+        UniqueConstraint('product_id', 'cost_center_id', 'start_date', name='uix_product_cost_center_start')
     )
 
+    # Relacionamentos
+    product = relationship("Product", back_populates="price_history")
+    retail_chain = relationship("RetailChain")
+    cost_center = relationship("CostCenter")
 
+
+class Supplier(Base):
+    __tablename__ = "suppliers"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(150), nullable=False, unique=True)
+    contact_email = Column(String(150), nullable=True)
+    contact_phone = Column(String(50), nullable=True)
+    address = Column(String(250), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relacionamento com StockMovement, para saber de qual fornecedor veio a entrada
+    stock_movements = relationship("StockMovement", back_populates="supplier")
+    

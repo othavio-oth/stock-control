@@ -1,3 +1,4 @@
+from typing import Union
 from fastapi import Query
 from app.controller.tickets_controller.cost_center_controller import get_cost_center_by_id, get_ticket_products_by_cost_center, get_tickets_by_cost_center, search_cost_centers_by_term_controller
 from app.repository.tickets.cost_center_repository import search_cost_centers_by_term
@@ -6,8 +7,8 @@ from . import *
 
 router = APIRouter()
 
-@router.get("/cost_centers/", response_model=AllCostCentersResponse, tags=["Cost Centers"])
-def get_cost_centers(page:int = Query(1, ge=1),db: Session = Depends(get_db)):
+@router.get("/cost_centers/", response_model=Union[AllCostCentersResponse, List[CostCenterResponse]], tags=["Cost Centers"])
+def get_cost_centers(page:int = Query(None, ge=1),db: Session = Depends(get_db)):
     return list_cost_centers(page,db)
 
 @router.post("/cost_centers/", response_model=CostCenterResponse, tags=["Cost Centers"] )

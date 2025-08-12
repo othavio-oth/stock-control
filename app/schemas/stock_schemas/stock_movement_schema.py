@@ -12,7 +12,7 @@ class StockMovementBase(BaseModel):
     
 class StockMovementLost(StockMovementBase):
     cost_center_id: Optional[int] = None
-    movement_type: str = MovementType.LOST.value  # Valor fixo para perdas
+    movement_type: str = MovementType.CLIENT_LOSS.value  # Valor fixo para perdas
     created_at: Optional[datetime] = None
 
     class Config:
@@ -21,12 +21,12 @@ class StockMovementLost(StockMovementBase):
 
 
 class StockMovementSaleCreate(StockMovementBase):
-    product_id: int
-    quantity: int
     cost_center_id: Optional[int] = None
     
-class SystemInStockMovement(StockMovementBase):
-    supplier: str
+class SupplierPurchaseDTO(StockMovementBase):
+    supplier_id: int
+    unit_cost: float
+    
 
 class StockMovementRead(StockMovementBase):
     id: int
@@ -41,6 +41,9 @@ class StockMovementRead(StockMovementBase):
 class StockTotal(BaseModel):
     product_id: int
     total: int
+    
+class InventoryResponse(StockMovementBase):
+    id: int
     
 
 class TotalProductStockResponse(StockTotal):

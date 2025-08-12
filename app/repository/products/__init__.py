@@ -8,12 +8,15 @@ from app.schemas.users_schemas.user_schema import UserCreate, UserUpdate, UserRe
 from app.schemas.users_schemas.roles_schema import RoleBase
 from app.schemas.users_schemas.permissions_schema import PermissionCreate
 from app.schemas.products_schemas.retail_chain_schemas import RetailChainBase, RetailChainResponse
+from app.models.product import ProductPriceHistory
+from app.schemas.products_schemas.product_price_schema import ProductPriceHistoryCreate
 from app.schemas.products_schemas.products_schemas import ProductBase, ProductCreate, ProductUpdate, ProductResponse
 from app.middleware.hash_password import hash_password
 
 __all__ = [
     "Session",
-    
+    "ProductPriceHistory",
+    "ProductPriceHistoryCreate",
     "Permission",
     "RolePermission",
     "Role",

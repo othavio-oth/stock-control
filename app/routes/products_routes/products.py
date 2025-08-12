@@ -1,19 +1,17 @@
+from typing import Union
 from fastapi import Query
 
-from app.controller.products_controller.product_controller import get_all_products_no_pagination_controller, get_product, get_product_entry_history_controller, search_products_by_term_controller
+from app.controller.products_controller.product_controller import get_all_products_controller, get_product, get_product_entry_history_controller,  search_products_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllEntriesProductsResponse, AllProductsResponse
 
 from . import *
 
 router = APIRouter()
 
-@router.get("/products/", response_model=AllProductsResponse, tags=["Products"])
-def get_products(page: int = Query(1, ge=1), db: Session = Depends(get_db)):
-    return list_products(page,db)
 
-@router.get("/products/no-pagination", response_model=List[ProductResponse], tags=["Products"])
-def get_products(db: Session = Depends(get_db)):
-    return get_all_products_no_pagination_controller(db)
+@router.get("/products", response_model=Union[List[ProductResponse], AllProductsResponse], tags=["Products"])
+def get_products(page:int = Query(None, ge=1),db: Session = Depends(get_db)):
+    return get_all_products_controller(page,db)
 
 @router.post("/products/", response_model=ProductResponse, tags=["Products"])
 def create_new_product(product_data: ProductCreate, db: Session = Depends(get_db)):

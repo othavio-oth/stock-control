@@ -1,4 +1,4 @@
-from app.routes.products_routes import category, chain_route, unit_measurement, unit_conversion, products
+from app.routes.products_routes import category, chain_route, products_price_route, supplier_route, unit_measurement, unit_conversion, products
 from app.routes.users_routes import seller, user, authentication, permissions, roles
 from app.routes.tickets_routes import cost_center, tickets_routes
 from app.routes.stock_routes import stock_router
@@ -32,6 +32,8 @@ app.include_router(unit_measurement.router, prefix="/units_adm",)
 app.include_router(unit_conversion.router, prefix="/conversions_adm",)
 app.include_router(category.router, prefix="/categories_adm",)
 app.include_router(products.router, prefix="/products_adm",)
+app.include_router(supplier_route.router, prefix="/suppliers_adm",)
+app.include_router(products_price_route.router, prefix="/products_adm/prices")
 
 app.include_router(cost_center.router, prefix="/cost_centers_adm",)
 app.include_router(tickets_routes.router, prefix="/tickets_adm",)

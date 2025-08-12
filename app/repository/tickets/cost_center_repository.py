@@ -3,18 +3,22 @@ from . import *
 from sqlalchemy.orm import joinedload
 
 def get_all_cost_centers(page,db):
-    page_size = 20
-    offset = (page - 1) * page_size
-    total = db.query(CostCenter).count()
-    costcenters = db.query(CostCenter).offset(offset).limit(page_size).all()
-    total_pages = (total + page_size - 1) // page_size
-    return {
-        "items": costcenters,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages
-    }
+    query = db.query(CostCenter)
+    if page is not None:
+        page_size = 20
+        offset = (page - 1) * page_size
+        total = db.query(CostCenter).count()
+        costcenters = query.offset(offset).limit(page_size).all()
+        total_pages = (total + page_size - 1) // page_size
+        return {
+            "items": costcenters,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages
+        }
+    return query.all()
+    
 
     
 

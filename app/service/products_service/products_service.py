@@ -1,12 +1,10 @@
 from fastapi import HTTPException
 from app.models.tickets import CostCenter
-from app.repository.products.products_repository import get_all_active_products, create_product, get_all_products_no_pagination, get_system_in_movements_by_product, search_products_by_term, update_product, delete_product, get_product_by_id
+from app.repository.products.products_repository import  create_product, get_all_products, search_products_by_term, update_product, delete_product, get_product_by_id
 from sqlalchemy.orm import Session
 from app.models.product import Product
 class ProductService:
-    @staticmethod
-    def list_products(page,db):
-        return get_all_active_products(page,db)
+
     
     @staticmethod
     def get_product(product_id, db):
@@ -35,12 +33,10 @@ class ProductService:
         return search_products_by_term(term,page, db)
     
     @staticmethod
-    def get_all_products_no_pagination_service(db):
-        return get_all_products_no_pagination(db)
+    def get_all_products_service(page,db):
+        return get_all_products(page,db)
     
-    @staticmethod
-    def get_product_entry_history(product_id: int, page: int, db: Session):
-        return  get_system_in_movements_by_product(product_id,page,db)
+
     
     # @staticmethod
     # def get_product_sales( db, product_id: int, cost_center_id: int, period_days: int = 30):

@@ -25,12 +25,15 @@ from app.controller.products_controller.unit_measurement_controller import creat
 from app.schemas.products_schemas.unit_conversion_schema import ConversionBase, ConversionResponse, ConversionCreate, ConversionUpdate
 from app.controller.products_controller.unit_conversion_controller import create_conversion, list_conversions, delete_conversion, edit_conversion
 
-from app.schemas.products_schemas.catogory_schema import  Category, CategoryResponse, CategoryCreate, CategoryUpdate
+from app.schemas.products_schemas.category_schema import  Category, CategoryResponse, CategoryCreate, CategoryUpdate
 from app.controller.products_controller.category_controller import create_category, list_categories, delete_category, edit_category
 
 
 from app.schemas.products_schemas.products_schemas import ProductBase, ProductCreate, ProductUpdate, ProductResponse
-from app.controller.products_controller.product_controller import create_product, list_products, edit_product, delete_product
+from app.controller.products_controller.product_controller import create_product, edit_product, delete_product
+
+from app.repository.products import ProductPriceHistory
+from app.schemas.products_schemas.product_price_schema import ProductPriceHistoryCreate
 
 
 
@@ -56,6 +59,8 @@ __all__= [
     "PermissionRequest",
     "PermissionCreate",
     "PermissionUpdate",
+    
+    
     
     "list_permissions",
     "create_permission",
@@ -128,8 +133,10 @@ __all__= [
     "ProductResponse",
     
     "create_product",
-    "list_products",
     "edit_product",
     "delete_product",
+    
+    "ProductPriceHistory",
+    "ProductPriceHistoryCreate",
 
 ]

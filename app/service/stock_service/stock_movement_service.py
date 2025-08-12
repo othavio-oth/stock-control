@@ -1,46 +1,90 @@
 from datetime import datetime
 from fastapi import HTTPException
-from pytest import Session
-from app.models.tickets import CostCenter
-from app.repository.stock.stock_movement_repository import create_system_in_movement, get_all_product_quantities_in_system, get_all_stock_movements, get_cost_center_stock, get_monthly_sales_losses_stats, get_total_in_system_by_product, get_total_sold_by_cost_center_in_period_grouped_by_product, register_stock_loss
+from sqlalchemy.orm import Session
+from app.models.product import ProductCostHistory
+from app.models.stockMovement import MovementType, StockMovement, InventoryStock
+from app.repository.stock.stock_movement_repository import get_all_stock_movements, get_current_stock
+from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO
 
 class StockMovementService:
     
     @staticmethod
-    def get_all_movements_service(db):
+    def get_current_stock_service(db: Session):
+        return get_current_stock(db)
+
+    @staticmethod
+    def get_all_movements_service(db: Session):
+        
         return get_all_stock_movements(db)
-    
-    @staticmethod
-    def create_system_in_movement_service(system_in_data, db):
-        return create_system_in_movement(system_in_data, db)
-    
-    @staticmethod
-    def get_total_in_system_by_product_service(db, product_id):
-        return get_total_in_system_by_product(db, product_id)
-
-    
-    @staticmethod
-    def get_total_sold_by_cost_center_in_period_grouped_by_product_service(db, cost_center_id, start_date, end_date):
-        return get_total_sold_by_cost_center_in_period_grouped_by_product(db, cost_center_id, start_date, end_date)
-    
 
     @staticmethod
-    def get_current_product_quantity_service(db):
-        return get_all_product_quantities_in_system(db)
-    
-    @staticmethod
-    def get_cost_center_stock_service(cost_center_id: int, db: Session):
-        cost_center = db.query(CostCenter).filter(CostCenter.id == cost_center_id).first()
-        if not cost_center:
-            raise HTTPException(status_code=404, detail="Cost center not found")
+    def add_stock_with_cost_average(db: Session, dto:SupplierPurchaseDTO):
 
-        return get_cost_center_stock( cost_center_id, db)
-    
+        # Criar movimentação
+        movement = StockMovement(
+            product_id=dto.product_id,
+            quantity=dto.quantity,
+            movement_type=MovementType.SUPPLIER_PURCHASE.value,
+            product_unit_cost=dto.unit_cost, 
+            created_at=datetime.now()
+        )
+
+        db.add(movement)
+        db.flush()  # Garantir ID se precisar usar em seguida
+
+        # Processa movimentação (estoque + custo médio + histórico)
+        StockMovementService.process_stock_movement(db, movement)
+
+        db.commit()
+        return movement
 
     @staticmethod
-    def get_monthly_sales_losses_stats_service(db: Session, year: int = None):
-        return get_monthly_sales_losses_stats(db, year)
-    
-    @staticmethod
-    def register_stock_loss_service(db, loss_data):
-        return register_stock_loss(db, loss_data)
+    def process_stock_movement(db: Session, movement: StockMovement):
+        """
+        Processa qualquer movimento e, se for SUPPLIER_PURCHASE,
+        recalcula custo médio e atualiza histórico.
+        """
+        if movement.movement_type == MovementType.SUPPLIER_PURCHASE.value:
+            # Estoque atual
+            stock = db.query(InventoryStock).filter_by(product_id=movement.product_id).first()
+            if not stock:
+                stock = InventoryStock(product_id=movement.product_id, quantity=0)
+                db.add(stock)
+                db.flush()
+
+            # Buscar custo vigente
+            current_cost_record = (
+                db.query(ProductCostHistory)
+                .filter_by(product_id=movement.product_id, end_date=None)
+                .first()
+            )
+            current_cost = float(current_cost_record.cost) if current_cost_record else 0.0
+
+            # Cálculo custo médio ponderado
+            total_qty = stock.quantity + movement.quantity
+            if total_qty > 0:
+                new_cost = (
+                    (stock.quantity * current_cost) +
+                    (movement.quantity * float(movement.product_unit_cost))
+                ) / total_qty
+            else:
+                new_cost = float(movement.product_unit_cost)
+
+            # Fecha histórico anterior
+            if current_cost_record:
+                current_cost_record.end_date = datetime.now()
+
+            # Novo histórico
+            new_cost_record = ProductCostHistory(
+                product_id=movement.product_id,
+                cost=new_cost,
+                start_date=datetime.now(),
+                end_date=None
+            )
+            db.add(new_cost_record)
+
+            # Atualiza estoque
+            stock.quantity += movement.quantity
+            db.add(stock)
+
+        # Aqui você pode tratar outros tipos de movimento

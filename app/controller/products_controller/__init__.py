@@ -32,7 +32,7 @@ from app.schemas.products_schemas.unit_conversion_schema import ConversionBase, 
 # Categories Imports
 
 from app.service.products_service.categories_service import CategoryService
-from app.schemas.products_schemas.catogory_schema import CategoryCreate, CategoryResponse
+from app.schemas.products_schemas.category_schema import CategoryCreate, CategoryResponse
 # Products Imports
 from app.service.products_service.products_service import ProductService
 from app.schemas.products_schemas.products_schemas import ProductBase, ProductCreate, ProductUpdate, ProductResponse

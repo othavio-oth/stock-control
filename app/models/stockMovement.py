@@ -1,15 +1,18 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
+from sqlalchemy import Column, Date, Integer, Numeric, String, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
+from sqlalchemy import Enum as SAEnum
 
 from app.database.base import Base
 
-class MovementType(str, enum.Enum):
-    SYSTEM_IN = "system_in"             # entrada no sistema
-    TO_COST_CENTER = "to_cost_center"   # enviado para um cliente/cost center
-    SOLD = "sold"                        # vendido pelo cliente
-    LOST = "lost"                        # perda
+class MovementType(enum.Enum):
+    SUPPLIER_PURCHASE = "supplier_purchase"  # Entrada no estoque (compra do produtor)
+    TO_CLIENT = "to_client"                  # Saída do seu estoque para cliente
+    CLIENT_SALE = "client_sale"               # Venda do cliente para consumidor final
+    CLIENT_LOSS = "client_loss"               # Perda no cliente
+    SUPPLIER_LOSS = "supplier_loss"           # Perda no seu próprio estoque
+
 
 class StockMovement(Base):
     __tablename__ = "stock_movements"
@@ -17,11 +20,84 @@ class StockMovement(Base):
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
-    movement_type = Column(Enum(MovementType), nullable=False)
-    supplier = Column(String, nullable=True)  
+    movement_type = Column(
+    SAEnum(
+        MovementType,
+        name="movement_type",  # nome do tipo ENUM no Postgres
+        values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        native_enum=True,
+        validate_strings=True,
+    ),
+    nullable=False,
+)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True) 
     cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=True) 
+    product_unit_cost = Column(Numeric(10, 2), nullable=True)
+
 
     product = relationship("Product", back_populates="stock_movements")
     cost_center = relationship("CostCenter", back_populates="stock_movements")
+    supplier = relationship("Supplier")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class ClientStock(Base):
+    __tablename__ = "client_stock"
+
+    id = Column(Integer, primary_key=True)
+    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, nullable=False, default=0)
+
+    product = relationship("Product")
+    cost_center = relationship("CostCenter")
+    
+class ClientSalesHistory(Base):
+    __tablename__ = "client_sales_history"
+
+    id = Column(Integer, primary_key=True)
+    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    sold_quantity = Column(Integer, nullable=False)
+
+    product = relationship("Product")
+    cost_center = relationship("CostCenter")
+
+
+class ReplenishmentRecommendation(Base):
+    __tablename__ = "replenishment_recommendations"
+
+    id = Column(Integer, primary_key=True)
+    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    recommendation_date = Column(DateTime, default=func.now())
+    recommendation = Column(String, nullable=False)  # "Enviar mais", "Estoque OK"
+    reason = Column(String, nullable=True)
+
+    product = relationship("Product")
+    cost_center = relationship("CostCenter")
+    
+
+
+class InventoryStock(Base):
+    __tablename__ = "inventory_stock"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, nullable=False, default=0)
+
+    product = relationship("Product")
+
+class ClientLossHistory(Base):
+    __tablename__ = "client_loss_history"
+
+    id = Column(Integer, primary_key=True)
+    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    lost_quantity = Column(Integer, nullable=False)
+    reason = Column(String, nullable=True)
+
+    product = relationship("Product")
+    cost_center = relationship("CostCenter")
