@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.product import ProductCostHistory
 from app.models.stockMovement import MovementType, StockMovement, InventoryStock
+from app.repository.stock.client_stock_repository import get_client_stock_by_cost_center
 from app.repository.stock.stock_movement_repository import get_all_stock_movements, get_current_stock
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO
 
@@ -88,3 +90,18 @@ class StockMovementService:
             db.add(stock)
 
         # Aqui você pode tratar outros tipos de movimento
+
+
+    @staticmethod
+    def get_client_stock_service(
+        db: Session,
+        cost_center_id: int,
+        product_ids: Optional[List[int]] = None,
+        include_zero: bool = False,
+    ) -> List[Dict[str, Any]]:
+        return get_client_stock_by_cost_center(
+            db=db,
+            cost_center_id=cost_center_id,
+            product_ids=product_ids,
+            include_zero=include_zero,
+        )

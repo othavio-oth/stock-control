@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -49,3 +49,8 @@ class InventoryResponse(StockMovementBase):
 class TotalProductStockResponse(StockTotal):
     pass
     
+class ClientStockResponse(BaseModel):
+    product_id: int
+    quantity: int
+
+    model_config = ConfigDict(from_attributes=True)

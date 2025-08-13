@@ -1,7 +1,10 @@
 from datetime import datetime
 from fastapi import HTTPException
 from pytest import Session
-from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket
+from app.models.product import Product
+from app.models.stockMovement import InventoryStock, MovementType, StockMovement
+from app.repository.stock.stock_movement_repository import process_stock_movement
+from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket, update_ticket_product_unit_price
 from app.models.tickets import Ticket, TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  StockMovementSaleCreate
 from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
@@ -73,5 +76,63 @@ class TicketService:
             raise HTTPException(status_code=500, detail=f"Erro ao processar venda: {str(e)}")
 
    
+    @staticmethod
+    def set_ticket_product_unit_price(db: Session, ticket_product_id: int, unit_price: float):
+        if unit_price is None or unit_price < 0:
+            raise ValueError("unit_price inválido")
+        tp = update_ticket_product_unit_price(db, ticket_product_id, unit_price)
+        return tp
+    
+    
+    @staticmethod
+    def approve_ticket(ticket_id: int, db: Session):
+        # 1) Carrega o ticket com os produtos
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket não encontrado")
 
+        if (ticket.status or "").lower() == "approved":
+            raise HTTPException(status_code=400, detail="Ticket já aprovado")
 
+        if not ticket.products or len(ticket.products) == 0:
+            raise HTTPException(status_code=400, detail="Ticket sem produtos")
+
+        # 2) Valida estoque do inventário antes de movimentar
+        insuficientes = []
+        for tp in ticket.products:
+            inv = db.query(InventoryStock).filter(InventoryStock.product_id == tp.product_id).first()
+            if not inv or inv.quantity < tp.quantity_ordered:
+                insuficientes.append({"product_id": tp.product_id, "requisitado": tp.quantity_ordered, "disponivel": inv.quantity if inv else 0})
+
+        if insuficientes:
+            raise HTTPException(
+                status_code=400,
+                detail={"erro": "Estoque insuficiente no inventário para alguns itens", "itens": insuficientes}
+            )
+
+        # 3) Cria as movimentações TO_CLIENT (saída do inventário / entrada no cliente)
+        for tp in ticket.products:
+            product = db.query(Product).filter(Product.id == tp.product_id).first()
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Produto {tp.product_id} não encontrado")
+
+            movement = StockMovement(
+                product_id=tp.product_id,
+                quantity=tp.quantity_ordered,
+                movement_type=MovementType.TO_CLIENT,      
+                cost_center_id=ticket.cost_center_id,
+                product_unit_cost=(product.current_cost if product.current_cost is not None else None),
+                created_at=datetime.now(),
+            )
+            db.add(movement)
+            db.flush()  # garante ID se necessário
+
+            # Atualiza estoques (InventoryStock ↓ / ClientStock ↑)
+            process_stock_movement(db, movement)
+
+        # 4) Marca ticket como aprovado e confirma
+        ticket.status = "approved"
+        db.commit()
+        db.refresh(ticket)
+
+        return ticket

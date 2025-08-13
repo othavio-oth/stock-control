@@ -1,7 +1,9 @@
 from fastapi import Query
 from app.controller.tickets_controller.tickets_controller import close_ticket_controller, process_sales_controller, search_tickets_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
+from app.schemas.products_schemas.product_price_schema import UnitPricePayload
 from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
+from app.service.tickets_service.tickets_service import TicketService
 from . import *
 from app.middleware.auth_handler import get_current_user
 
@@ -65,3 +67,24 @@ def update_ticket_products_and_create_movements(
     db: Session = Depends(get_db)
 ):
     return process_sales_controller(ticket, db)
+
+@router.patch("/products/{ticket_product_id}/unit-price", tags=["Tickets"])
+def set_unit_price(ticket_product_id: int, body: UnitPricePayload, db: Session = Depends(get_db)):
+    tp = TicketService.set_ticket_product_unit_price(db, ticket_product_id, body.unit_price)
+    if not tp:
+        raise HTTPException(404, "TicketProduct não encontrado")
+    return {"id": tp.id, "ticket_id": tp.ticket_id, "product_id": tp.product_id, "unit_price": float(tp.unit_price or 0)}
+
+
+@router.post("/{ticket_id}/approve" , tags=["Tickets"])
+def approve_ticket_endpoint(ticket_id: int, db: Session = Depends(get_db)):
+    """
+    Aprova o ticket e transfere o estoque do inventário para o cliente.
+    """
+    try:
+        ticket = TicketService.approve_ticket(ticket_id, db)
+        return ticket  # Se tiver um schema pydantic, você pode usar response_model aqui
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao aprovar ticket: {str(e)}")

@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta
-from decimal import Decimal
-from typing import Any, Dict, Optional
-from fastapi import HTTPException
-from sqlalchemy import and_, func, or_
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 from app.models.stockMovement import MovementType, StockMovement
 from . import *
 
 def get_all_products(page,db):
-    query = db.query(Product).filter(Product.is_active == True)
+    query = (db.query(Product)
+             .options(joinedload(Product.cost_history))
+             .filter(Product.is_active == True))
     if page is not None:
         page_size = 20
         offset = (page - 1) * page_size
@@ -30,7 +30,7 @@ def get_all_products(page,db):
 
 
 def get_product_by_id(product_id, db):
-    return db.query(Product).filter(Product.id == product_id, Product.is_active==True).first()
+    return db.query(Product).options(joinedload(Product.cost_history)).filter(Product.id == product_id, Product.is_active==True).first()
 
 def create_product(db, product_data):
     product = Product(**product_data.dict())
@@ -61,7 +61,7 @@ def delete_product( db: Session, product: Product):
 def search_products_by_term( search_term: str,page:int,db: Session):
     page_size = 20
     offset = (page - 1) * page_size
-    base_query = db.query(Product).filter(
+    base_query = db.query(Product).options(joinedload(Product.cost_history)).filter(
             or_(
                 Product.custom_id == int(search_term) if search_term.isdigit() else False,
                 Product.name.ilike(f"%{search_term}%"),

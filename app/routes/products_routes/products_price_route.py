@@ -1,8 +1,8 @@
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.middleware.db import get_db
-from app.schemas.products_schemas.product_price_schema import ProductPriceHistoryCreate, ProductPriceHistoryUpdate
+from app.schemas.products_schemas.product_price_schema import ProductCurrentPriceResponse, ProductPriceHistoryCreate, ProductPriceHistoryUpdate
 from app.service.products_service.products_price_service import ProductPriceHistoryService
 
 router = APIRouter( tags=["prices"])
@@ -31,26 +31,25 @@ def delete_price_endpoint(price_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Price history not found")
     return {"message": "Price history deleted successfully"}
 
-@router.get("/entity-price")
-def get_entity_price_endpoint(
-    product_id: int,
-    retail_chain_id: Optional[int] = None,
-    cost_center_id: Optional[int] = None,
-    db: Session = Depends(get_db)
-):
-    try:
-        result = ProductPriceHistoryService.get_price_for_entity_service(
-            db,
-            product_id=product_id,
-            retail_chain_id=retail_chain_id,
-            cost_center_id=cost_center_id
-        )
-        if not result:
-            raise HTTPException(status_code=404, detail="Price not found for this entity")
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/")
 def get_current_prices_endpoint( db: Session = Depends(get_db)):
     return ProductPriceHistoryService.get_all_current_prices_service(db)
+
+@router.get("/current-prices", response_model=List[ProductCurrentPriceResponse])
+def get_current_prices_batch(
+    cost_center_id: int = Query(..., description="ID do cost center"),
+    ids: str = Query(..., description="Lista de product_ids separados por vírgula, ex: 1,2,3"),
+    db: Session = Depends(get_db),
+):
+    try:
+        product_ids = [int(x) for x in ids.split(",") if x.strip()]
+    except ValueError:
+        product_ids = []
+
+    data = ProductPriceHistoryService.get_current_prices_batch_for_cost_center(
+        db=db,
+        product_ids=product_ids,
+        cost_center_id=cost_center_id,
+    )
+    return data

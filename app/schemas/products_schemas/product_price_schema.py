@@ -46,4 +46,15 @@ class ProductPriceHistoryResponse(ProductPriceHistoryBase):
     cost_center: Optional[CostCenterSimple] = None
     product: ProductSimple
 
-    model_config = ConfigDict(from_attributes=True)  # Substitui o orm_mode=True do Pydantic v1
+    model_config = ConfigDict(from_attributes=True) 
+    
+    
+class ProductCurrentPriceResponse(BaseModel):
+    product_id: int
+    price: Optional[float] = None
+    source: Optional[str] = None  # "cost_center" | "retail_chain" | "default" | None
+
+    model_config = ConfigDict(from_attributes=True)
+    
+class UnitPricePayload(BaseModel):
+    unit_price: float

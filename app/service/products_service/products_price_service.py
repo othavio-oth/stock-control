@@ -1,10 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models.product import ProductPriceHistory
-from app.repository.products.products_price_repository import create_price_history, delete_price_history, get_all_current, get_all_current_by_product, get_current_by_product_and_entity
+from app.models.tickets import CostCenter
+from app.repository.products.products_price_repository import create_price_history, delete_price_history, get_all_current, get_all_current_by_product, get_current_prices_for_products_and_cc
 from app.schemas.products_schemas.product_price_schema import ProductPriceHistoryCreate, ProductPriceHistoryUpdate
 
 class ProductPriceHistoryService:
@@ -54,20 +55,17 @@ class ProductPriceHistoryService:
     @staticmethod
     def delete_price_service(db: Session, price_id: int) -> bool:
         return delete_price_history(db, price_id)
+    
+    
     @staticmethod
-
-    def get_price_for_entity_service(
+    def get_current_prices_batch_for_cost_center(
         db: Session,
-        product_id: int,
-        retail_chain_id: Optional[int] = None,
-        cost_center_id: Optional[int] = None
-    ) -> Optional[ProductPriceHistory]:
-        if not (retail_chain_id or cost_center_id):
-            raise ValueError("Deve informar retail_chain_id ou cost_center_id")
-        
-        return get_current_by_product_and_entity(
-            db,
-            product_id=product_id,
-            retail_chain_id=retail_chain_id,
-            cost_center_id=cost_center_id
-        )
+        product_ids: List[int],
+        cost_center_id: int,
+    ) -> List[Dict[str, Any]]:
+        cc = db.query(CostCenter).filter(CostCenter.id == cost_center_id).first()
+        if not cc:
+            return [{"product_id": pid, "price": None, "source": None} for pid in product_ids]
+
+        chain_id = cc.retail_chain_id  # pode ser None
+        return get_current_prices_for_products_and_cc(db, product_ids, cost_center_id, chain_id)

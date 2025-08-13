@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Any
+
+from fastapi import Query
 from app.controller.stock_controller.stock_movement_controller import  get_all_movements, get_current_stock
 from app.models.stockMovement import StockMovement
-from app.schemas.stock_schemas.stock_movement_schema import InventoryResponse, StockMovementLost, StockMovementRead, SupplierPurchaseDTO, TotalProductStockResponse
+from app.schemas.stock_schemas.stock_movement_schema import ClientStockResponse, InventoryResponse, StockMovementLost, StockMovementRead, SupplierPurchaseDTO, TotalProductStockResponse
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 router = APIRouter()
@@ -26,6 +28,38 @@ def get_total_in_system(db: Session = Depends(get_db)):
 def add_stock( dto:SupplierPurchaseDTO, db: Session = Depends(get_db),):
     return StockMovementService.add_stock_with_cost_average(db, dto)
 
+@router.get(
+    "/client-stock",
+    response_model=List[ClientStockResponse],
+    summary="Estoque do cliente por produto",
+    description="Retorna o estoque atual do cliente (por produto). "
+                "Parâmetros opcionais: product_ids CSV e include_zero.",
+    tags=["Client Stock"],
+)
+def get_client_stock(
+    cost_center_id: int = Query(..., description="ID do cost center"),
+    product_ids: Optional[str] = Query(
+        None, description="CSV de product_ids para filtrar (ex: 1,2,3)"
+    ),
+    include_zero: bool = Query(
+        False, description="Se true, retorna 0 para ids solicitados e não encontrados"
+    ),
+    db: Session = Depends(get_db),
+):
+    ids_list: Optional[List[int]] = None
+    if product_ids:
+        try:
+            ids_list = [int(x) for x in product_ids.split(",") if x.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="product_ids inválido")
+
+    data = StockMovementService.get_client_stock_service(
+        db=db,
+        cost_center_id=cost_center_id,
+        product_ids=ids_list,
+        include_zero=include_zero,
+    )
+    return data
 # @router.get("/stock-movements/monthly-sales-losses", 
 #            response_model=List[Dict[str, Any]], 
 #            tags=["Stock Movements"])

@@ -1,19 +1,17 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import date
 
 
 class TicketProductBase(BaseModel):
-    ticket_id: int
+    ticket_id: Optional[int] = None
     product_id: int
     quantity_ordered: float
-    quantity_sold: Optional[float] = 0
-    sold_until: Optional[date] = None
     unit_price: Optional[float] = None
     entry_price: Optional[float] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
         
 class TicketProductUpdate(TicketProductBase):
     id: int
@@ -26,10 +24,8 @@ class TicketProductCreate(TicketProductBase):
 class TicketProductResponse(TicketProductBase):
     id: int
     description: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
-
-    class Config:
-        from_attributes = True
 
 
 
@@ -41,12 +37,13 @@ class TicketBase(BaseModel):
     cost_center_id: int
     created_by: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
 
 
 class TicketCreate(TicketBase):
-    pass
+    products: List[TicketProductCreate] = []
+
 
 
 class TicketUpdate(TicketBase):
@@ -61,8 +58,7 @@ class TicketResponse(TicketBase):
     id: int
     products: List[TicketProductResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class TicketSalesResponse(BaseModel):
     message: str
