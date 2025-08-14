@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import case, extract, func
 from app.models.tickets import Ticket, TicketProduct
@@ -14,35 +14,55 @@ from sqlalchemy.orm import Session
 from datetime import date
 
 def process_stock_movement(db: Session, movement: StockMovement):
-    # Atualiza estoque fornecedor e/ou cliente conforme tipo de movimento
-
-    # Atualizar estoque do fornecedor
+    """
+    Atualiza estoques do INVENTÁRIO e/ou do CLIENTE conforme o tipo de movimento.
+    Regras:
+      - SUPPLIER_PURCHASE: inventário ++ (exige supplier_id)
+      - SUPPLIER_LOSS: inventário --
+      - TO_CLIENT: inventário -- e cliente ++
+      - CLIENT_SALE: cliente -- (+ histórico de venda)
+      - CLIENT_LOSS: cliente -- (+ histórico de perda)
+    """
+    # -------- INVENTÁRIO (fornecedor) --------
     if movement.movement_type in [
-        MovementType.SUPPLIER_PURCHASE.value,
-        MovementType.SUPPLIER_LOSS.value,
-        MovementType.TO_CLIENT.value
+        MovementType.SUPPLIER_PURCHASE,
+        MovementType.SUPPLIER_LOSS,
+        MovementType.TO_CLIENT,
     ]:
-        if movement.movement_type == MovementType.SUPPLIER_PURCHASE.value and not movement.supplier_id:
-            raise ValueError("Movimentações do tipo SUPPLIER_PURCHASE devem ter supplier_id preenchido")
+        if movement.movement_type == MovementType.SUPPLIER_PURCHASE and not movement.supplier_id:
+            raise ValueError("Movimentações SUPPLIER_PURCHASE exigem supplier_id.")
 
-        supplier_stock = db.query(InventoryStock).filter_by(product_id=movement.product_id).first()
+        supplier_stock = (
+            db.query(InventoryStock)
+              .filter_by(product_id=movement.product_id)
+              .with_for_update()
+              .first()
+        )
         if not supplier_stock:
             supplier_stock = InventoryStock(product_id=movement.product_id, quantity=0)
             db.add(supplier_stock)
+            db.flush()
 
         if movement.movement_type == MovementType.SUPPLIER_PURCHASE:
             supplier_stock.quantity += movement.quantity
-        elif movement.movement_type in [MovementType.SUPPLIER_LOSS, MovementType.TO_CLIENT]:
+        else:
+            # SUPPLIER_LOSS ou TO_CLIENT → debita inventário
+            if supplier_stock.quantity < movement.quantity:
+                raise ValueError(
+                    f"Estoque do inventário insuficiente: "
+                    f"disp={supplier_stock.quantity}, req={movement.quantity}"
+                )
             supplier_stock.quantity -= movement.quantity
 
-    # Atualizar estoque do cliente
+    # -------- CLIENTE (cost center) --------
     if movement.cost_center_id:
         client_stock = (
             db.query(ClientStock)
-            .filter_by(product_id=movement.product_id, cost_center_id=movement.cost_center_id)
-            .first()
+              .filter_by(product_id=movement.product_id,
+                         cost_center_id=movement.cost_center_id)
+              .with_for_update()
+              .first()
         )
-
         if not client_stock:
             client_stock = ClientStock(
                 product_id=movement.product_id,
@@ -50,19 +70,26 @@ def process_stock_movement(db: Session, movement: StockMovement):
                 quantity=0
             )
             db.add(client_stock)
+            db.flush()
 
         if movement.movement_type == MovementType.TO_CLIENT:
             client_stock.quantity += movement.quantity
+
         elif movement.movement_type == MovementType.CLIENT_SALE:
+            if client_stock.quantity < movement.quantity:
+                raise ValueError(
+                    f"Estoque do cliente insuficiente para venda: "
+                    f"disp={client_stock.quantity}, req={movement.quantity}"
+                )
             client_stock.quantity -= movement.quantity
 
-            # Atualiza histórico de vendas
+            # Histórico de vendas (por dia)
             sales_record = (
                 db.query(ClientSalesHistory)
-                .filter_by(product_id=movement.product_id,
-                           cost_center_id=movement.cost_center_id,
-                           date=date.today())
-                .first()
+                  .filter_by(product_id=movement.product_id,
+                             cost_center_id=movement.cost_center_id,
+                             date=date.today())
+                  .first()
             )
             if not sales_record:
                 sales_record = ClientSalesHistory(
@@ -72,19 +99,23 @@ def process_stock_movement(db: Session, movement: StockMovement):
                     sold_quantity=0
                 )
                 db.add(sales_record)
-
             sales_record.sold_quantity += movement.quantity
 
         elif movement.movement_type == MovementType.CLIENT_LOSS:
+            if client_stock.quantity < movement.quantity:
+                raise ValueError(
+                    f"Estoque do cliente insuficiente para perda: "
+                    f"disp={client_stock.quantity}, req={movement.quantity}"
+                )
             client_stock.quantity -= movement.quantity
 
-            # Atualiza histórico de perdas
+            # Histórico de perdas (por dia)
             loss_record = (
                 db.query(ClientLossHistory)
-                .filter_by(product_id=movement.product_id,
-                           cost_center_id=movement.cost_center_id,
-                           date=date.today())
-                .first()
+                  .filter_by(product_id=movement.product_id,
+                             cost_center_id=movement.cost_center_id,
+                             date=date.today())
+                  .first()
             )
             if not loss_record:
                 loss_record = ClientLossHistory(
@@ -95,7 +126,6 @@ def process_stock_movement(db: Session, movement: StockMovement):
                     reason="Perda registrada"
                 )
                 db.add(loss_record)
-
             loss_record.lost_quantity += movement.quantity
 
     db.commit()
@@ -107,247 +137,122 @@ def get_all_stock_movements(db: Session):
 def get_current_stock(db:Session):
     return db.query(InventoryStock).all()
 
-# def create_system_in_movement(system_in_data, db) -> StockMovement:
-#     movement = StockMovement(
-#         product_id=system_in_data.product_id,
-#         quantity=system_in_data.quantity,
-#         movement_type=MovementType.SYSTEM_IN.value,
-#         supplier=system_in_data.supplier,
-#         cost_center_id=None
-#     )
-#     db.add(movement)
-#     db.commit()
-#     db.refresh(movement)
-#     return movement
+def get_ticket_approved_at(db: Session, ticket_id: int) -> Optional[date]:
+    row = db.query(Ticket.approved_at).filter(Ticket.id == ticket_id).first()
+    return row[0] if row and row[0] else None
 
-# def get_total_in_system_by_product(db, product_id):
-#     total_in = db.query(func.sum(StockMovement.quantity)).filter(
-#         StockMovement.product_id == product_id,
-#         StockMovement.movement_type == MovementType.SYSTEM_IN
-#     ).scalar() or 0
-
-#     total_out = db.query(func.sum(StockMovement.quantity)).filter(
-#         StockMovement.product_id == product_id,
-#         StockMovement.movement_type == MovementType.TO_COST_CENTER
-#     ).scalar() or 0
-
-#     total = total_in - total_out
-#     return TotalProductStockResponse(product_id=product_id, total_in_system=total)
-
-
-
-# def get_total_sold_by_cost_center_in_period_grouped_by_product(
-#     db: Session,
-#     cost_center_id: int,
-#     start_date: datetime,
-#     end_date: datetime,
-# ):
-#     results = db.query(
-#         StockMovement.product_id,
-#         func.sum(StockMovement.quantity).label("total_sold")  # <-- corrigido aqui
-#     ).filter(
-#         and_(
-#             StockMovement.cost_center_id == cost_center_id,
-#             StockMovement.movement_type == MovementType.OUT,
-#             StockMovement.created_at >= start_date,
-#             StockMovement.created_at <= end_date,
-#         )
-#     ).group_by(StockMovement.product_id).all()
-
-#     return [TotalProductStockResponse(product_id=r.product_id, total_sold=r.total_sold) for r in results]
+def get_existing_sales_days(
+    db: Session,
+    cost_center_id: int,
+    product_id: int,
+    start: date,
+    end: date,
+) -> Set[date]:
+    """
+    Retorna os dias que já possuem vendas registradas no intervalo [start, end].
+    Útil para evitar duplicidade ao distribuir o total por dia.
+    """
+    rows = (
+        db.query(ClientSalesHistory.date)
+        .filter(
+            ClientSalesHistory.cost_center_id == cost_center_id,
+            ClientSalesHistory.product_id == product_id,
+            ClientSalesHistory.date >= start,
+            ClientSalesHistory.date <= end,
+        )
+        .all()
+    )
+    return {r[0] for r in rows}
 
 
-# def get_current_quantity(product_id: int, db: Session):
-#     total_in = db.query(func.sum(StockMovement.quantity)).filter(
-#         StockMovement.product_id == product_id,
-#         StockMovement.movement_type == MovementType.SYSTEM_IN
-#     ).scalar() or 0
-
-#     total_out = db.query(func.sum(StockMovement.quantity)).filter(
-#         StockMovement.product_id == product_id,
-#         StockMovement.movement_type == MovementType.TO_COST_CENTER
-#     ).scalar() or 0
-
-#     return total_in - total_out
-
-# def get_all_product_quantities_in_system(db: Session):
-
-#     products = db.query(Product).filter(Product.is_active == True).all()
-
-#     result = [
-#         TotalProductStockResponse(
-#             product_id=product.id,
-#             total=get_current_quantity(product.id, db)
-#         )
-#         for product in products
-#     ]
-
-#     return result
-
-    
-# def move_stock_to_cost_center(movement_data, db) -> StockMovement:
-
-#     movement = StockMovement(
-#         product_id=movement_data.product_id,
-#         quantity=movement_data.quantity,
-#         movement_type=MovementType.TO_COST_CENTER.value,
-#         cost_center_id=movement_data.cost_center_id
-#     )
-
-#     db.add(movement)
-#     db.commit()
-#     db.refresh(movement)
-
-#     return movement
+def upsert_sales_for_day(
+    db: Session,
+    cost_center_id: int,
+    product_id: int,
+    d: date,
+    qty: int,
+) -> None:
+    """
+    Faz upsert da venda diária (somando ao que já existir no dia).
+    """
+    sales = (
+        db.query(ClientSalesHistory)
+        .filter_by(product_id=product_id, cost_center_id=cost_center_id, date=d)
+        .first()
+    )
+    if not sales:
+        sales = ClientSalesHistory(
+            product_id=product_id,
+            cost_center_id=cost_center_id,
+            date=d,
+            sold_quantity=0,
+        )
+        db.add(sales)
+    sales.sold_quantity += qty
 
 
-# def get_current_quantity_by_cost_center(
-#     db: Session,
-#     product_id: int,
-#     cost_center_id: int
-# ) -> int:
-#     total_in = db.query(func.sum(StockMovement.quantity)).filter(
-#         StockMovement.product_id == product_id,
-#         StockMovement.cost_center_id == cost_center_id,
-#         StockMovement.movement_type == MovementType.TO_COST_CENTER
-#     ).scalar() or 0
+# ——— StockMovement ————————————————————————————————————————————————
 
-#     total_out = db.query(func.sum(StockMovement.quantity)).filter(
-#         StockMovement.product_id == product_id,
-#         StockMovement.cost_center_id == cost_center_id,
-#         StockMovement.movement_type == MovementType.RETURN_TO_SYSTEM
-#     ).scalar() or 0
-
-#     return total_in - total_out
-
-
-# def get_all_product_quantities_in_cost_center(db: Session, cost_center_id: int) -> List[TotalProductStockResponse]:
-#     products = db.query(Product).filter(Product.status == True).all()
-    
-#     result = []
-#     for product in products:
-#         quantity = get_current_quantity_by_cost_center(db, product.id, cost_center_id)
-#         result.append(
-#             TotalProductStockResponse(product_id=product.id, total_in_system=quantity)
-#         )
-    
-#     return result
-
-# def create_stock_movements_for_sales(ticket_products: list[TicketProduct],center_id: int, db: Session):
-#     for tp in ticket_products:
-#         stock_movement = StockMovement(
-#             product_id=tp.product_id,
-#             quantity=tp.quantity_sold,
-#             movement_type=MovementType.SOLD,
-#             cost_center_id=center_id
-#         )
-#         db.add(stock_movement)
-    
-#     db.commit()
-    
-    
-# def get_cost_center_stock(cost_center_id: int, db: Session):
+def create_client_sale_movement(
+    db: Session,
+    product_id: int,
+    cost_center_id: int,
+    qty: int,
+    created_at: datetime,
+    product_unit_cost: Optional[float] = None,
+) -> None:
+    """
+    Cria uma movimentação do tipo CLIENT_SALE no dia da venda.
+    """
+    mv = StockMovement(
+        product_id=product_id,
+        quantity=qty,
+        movement_type=MovementType.CLIENT_SALE,
+        cost_center_id=cost_center_id,
+        created_at=created_at,          # sobrescreve o server_default
+        product_unit_cost=product_unit_cost,
+    )
+    db.add(mv)
 
 
-#     stock = (
-#         db.query(
-#             StockMovement.product_id,
-#             func.sum(
-#                 case(
-#                     (StockMovement.movement_type.in_([MovementType.SYSTEM_IN, MovementType.TO_COST_CENTER]), StockMovement.quantity),
-#                     (StockMovement.movement_type.in_([MovementType.SOLD, MovementType.LOST]), -StockMovement.quantity),
-#                     else_=0
-#                 )
-#             ).label("total")
-#         )
-#         .join(Product, Product.id == StockMovement.product_id)
-#         .filter(StockMovement.cost_center_id == cost_center_id)
-#         .group_by(StockMovement.product_id, Product.description)
-#         .having(func.sum(
-#             case(
-#                 (StockMovement.movement_type.in_([MovementType.SYSTEM_IN, MovementType.TO_COST_CENTER]), StockMovement.quantity),
-#                 (StockMovement.movement_type.in_([MovementType.SOLD, MovementType.LOST]), -StockMovement.quantity),
-#                 else_=0
-#             )
-#         ) > 0)
-#         .all()
-#     )
+# ——— ClientStock ————————————————————————————————————————————————
+
+def get_or_create_client_stock_for_update(
+    db: Session,
+    cost_center_id: int,
+    product_id: int,
+) -> ClientStock:
+    """
+    Retorna o ClientStock com lock (FOR UPDATE). Cria com quantity=0 se não existir.
+    """
+    cs = (
+        db.query(ClientStock)
+        .filter_by(product_id=product_id, cost_center_id=cost_center_id)
+        .with_for_update(of=ClientStock)
+        .first()
+    )
+    if not cs:
+        cs = ClientStock(
+            product_id=product_id,
+            cost_center_id=cost_center_id,
+            quantity=0,
+        )
+        db.add(cs)
+        db.flush()
+    return cs
 
 
-#     return stock
-
-# def get_monthly_sales_losses_stats(db: Session, year: int = None) -> List[Dict[str, Any]]:
-#     """
-#     Controller para estatísticas mensais de vendas e perdas
-#     """
-#     if year is None:
-#         year = datetime.now().year
-    
-#     month_map = {
-#         1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
-#         5: "May", 6: "Jun", 7: "Jul", 8: "Aug",
-#         9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"
-#     }
-    
-#     # Query para vendas
-#     sales = db.query(
-#         extract('month', Ticket.order_date).label('month'),
-#         func.sum(TicketProduct.quantity_sold).label('sales')
-#     ).join(Ticket).filter(
-#         and_(
-#             TicketProduct.quantity_sold > 0,
-#             extract('year', Ticket.order_date) == year
-#         )
-#     ).group_by(extract('month', Ticket.order_date)).all()
-    
-#     # Query para perdas
-#     losses = db.query(
-#         extract('month', StockMovement.created_at).label('month'),
-#         func.sum(StockMovement.quantity).label('losses')
-#     ).filter(
-#         and_(
-#             StockMovement.movement_type == MovementType.LOST,
-#             extract('year', StockMovement.created_at) == year
-#         )
-#     ).group_by(extract('month', StockMovement.created_at)).all()
-    
-#     # Consolidar resultados
-#     stats = {month: {"month": name, "sales": 0, "losses": 0} 
-#             for month, name in month_map.items()}
-    
-#     for month, amount in sales:
-#         stats[month]["sales"] = amount or 0
-        
-#     for month, amount in losses:
-#         stats[month]["losses"] = amount or 0
-    
-#     return list(stats.values())
-
-
-
-# def register_stock_loss(
-#     db: Session, 
-#     loss_data: StockMovementLost
-# ) -> StockMovement:
-
-
-#     # Validação adicional
-#     if loss_data.quantity <= 0:
-#         raise ValueError("A quantidade deve ser maior que zero")
-    
-#     try:
-#         # Cria o movimento de perda
-#         loss_movement = StockMovement(
-#             **loss_data.model_dump(exclude_unset=True),
-#             created_at=loss_data.created_at or datetime.now()
-#         )
-        
-#         db.add(loss_movement)
-#         db.commit()
-#         db.refresh(loss_movement)
-        
-#         return loss_movement
-        
-#     except Exception as e:
-#         db.rollback()
-#         raise ValueError(f"Falha ao registrar perda: {str(e)}")
+def decrement_client_stock(
+    cs: ClientStock,
+    total: int,
+    allow_negative: bool,
+) -> None:
+    """
+    Decrementa o estoque do cliente pelo total vendido.
+    Se allow_negative=False, lança erro quando não houver quantidade suficiente.
+    """
+    if not allow_negative and cs.quantity < total:
+        raise ValueError(
+            f"Estoque insuficiente no cliente. Em estoque: {cs.quantity}, vendido: {total}"
+        )
+    cs.quantity -= total

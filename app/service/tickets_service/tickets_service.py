@@ -1,14 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 from pytest import Session
 from app.models.product import Product
 from app.models.stockMovement import InventoryStock, MovementType, StockMovement
 from app.repository.stock.stock_movement_repository import process_stock_movement
-from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket, update_ticket_product_unit_price
+from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_last_approved_ticket_id_for_cc_product, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket, update_ticket_product_unit_price
 from app.models.tickets import Ticket, TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  StockMovementSaleCreate
 from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
-from sqlalchemy.orm import joinedload
+from fastapi import HTTPException
+from starlette.status import HTTP_404_NOT_FOUND
+
 
 
 class TicketService:
@@ -125,14 +127,27 @@ class TicketService:
                 created_at=datetime.now(),
             )
             db.add(movement)
+            process_stock_movement(db, movement)
             db.flush()  # garante ID se necessário
 
             # Atualiza estoques (InventoryStock ↓ / ClientStock ↑)
-            process_stock_movement(db, movement)
 
         # 4) Marca ticket como aprovado e confirma
         ticket.status = "approved"
+        ticket.approved_at = datetime.now()
+        ticket.sales_start_date = ticket.approved_at + timedelta(days=1)
         db.commit()
         db.refresh(ticket)
 
         return ticket
+    
+    @staticmethod
+    def get_last_approved_ticket_id_service(db: Session, cost_center_id: int, product_id: int
+    ) -> dict:
+        ticket_id = get_last_approved_ticket_id_for_cc_product(db, cost_center_id, product_id)
+        if not ticket_id:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail="Nenhum ticket aprovado encontrado para este produto/centro de custo.",
+            )
+        return {"id": ticket_id}

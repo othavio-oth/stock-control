@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, Integer, Numeric, String, Enum, ForeignKey, DateTime
+from sqlalchemy import Column, Date, Integer, Numeric, String, Enum, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -63,7 +63,9 @@ class ClientSalesHistory(Base):
 
     product = relationship("Product")
     cost_center = relationship("CostCenter")
-
+    __table_args__ = (
+        UniqueConstraint("cost_center_id", "product_id", "date", name="uq_sales_day"),
+    )
 
 class ReplenishmentRecommendation(Base):
     __tablename__ = "replenishment_recommendations"

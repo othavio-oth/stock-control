@@ -49,6 +49,8 @@ class Ticket(Base):
     status = Column(String, default=True)
     cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
     order_date = Column(Date, nullable=False)
+    approved_at = Column(DateTime, nullable=True)
+    sales_start_date = Column(Date, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     products = relationship("TicketProduct", back_populates="ticket",     cascade="all, delete-orphan"
 )

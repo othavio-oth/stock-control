@@ -88,3 +88,11 @@ def approve_ticket_endpoint(ticket_id: int, db: Session = Depends(get_db)):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao aprovar ticket: {str(e)}")
+    
+@router.get("/last-approved" , tags=["Tickets"])
+def get_last_approved_ticket_id(
+    cost_center_id: int = Query(..., ge=1),
+    product_id: int = Query(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    return TicketService.get_last_approved_ticket_id_service(db, cost_center_id, product_id)

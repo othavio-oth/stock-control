@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from fastapi import HTTPException
 from app.models.stockMovement import StockMovement
@@ -6,7 +7,7 @@ from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead, S
 from app.schemas.tickets_schemas.tickets_schemas import TicketProductBase
 from . import *
 from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
+from sqlalchemy import desc, or_
 
 def search_tickets_any( search_term: str,page:int,db: Session):
     page_size = 20
@@ -159,3 +160,25 @@ def update_ticket_product_unit_price(db: Session, ticket_product_id: int, unit_p
     db.commit()
     db.refresh(tp)
     return tp
+
+def get_last_approved_ticket_id_for_cc_product(
+    db: Session, cost_center_id: int, product_id: int
+) -> Optional[int]:
+    """
+    Retorna o ID do último ticket aprovado para (cost_center_id, product_id).
+    Preferência: approved_at mais recente. Fallback: status == 'APPROVED'.
+    """
+    # 1) Preferência: approved_at definido
+    q1 = (
+        db.query(Ticket.id)
+        .join(TicketProduct, TicketProduct.ticket_id == Ticket.id)
+        .filter(
+            Ticket.cost_center_id == cost_center_id,
+            TicketProduct.product_id == product_id,
+            Ticket.approved_at.isnot(None),         # requer o campo approved_at
+        )
+        .order_by(desc(Ticket.approved_at), desc(Ticket.id))
+        .limit(1)
+    ).first()
+    if q1:
+        return q1[0]
