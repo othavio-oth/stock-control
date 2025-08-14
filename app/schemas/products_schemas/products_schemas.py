@@ -19,6 +19,7 @@ class ProductResponse(ProductBase):
     is_active: Optional[bool] = True
     deleted_at: Optional[date] = None
     current_cost: Optional[float] = None
+    default_price: Optional[float] = None
     
     class Config:
         from_attributes = True  
