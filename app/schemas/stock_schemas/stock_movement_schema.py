@@ -55,12 +55,8 @@ class ClientStockResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
     
-class ClientSalesAnchoredDTO(BaseModel):
-    ticket_id: int                       # só para descobrir o start_date
+class RegisterClientSalesDTO(BaseModel):
     cost_center_id: int
     product_id: int
-    total_sold: Optional[int] = Field(default=None, ge=0)
-    per_day: Optional[Dict[date, int]] = None  # {2025-08-12: 3, ...}
-    registration_dt: Optional[datetime] = None # se None, usa agora()
-    distribute: Literal["even","front","back"] = "even"
-    allow_negative_client_stock: bool = False
+    total_sold: int = Field(gt=0)           # > 0
+    registration_date: date  

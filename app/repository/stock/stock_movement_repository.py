@@ -1,4 +1,5 @@
 from collections import defaultdict
+from time import time
 from typing import Any, Dict, List, Optional, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import case, extract, func
@@ -6,12 +7,16 @@ from app.models.tickets import Ticket, TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  StockMovementLost, TotalProductStockResponse
 from app.models.stockMovement import ClientLossHistory, ClientSalesHistory, ClientStock, MovementType, InventoryStock
 from sqlalchemy import and_ 
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.models.stockMovement import StockMovement
 from app.models.product import Product
 
 from sqlalchemy.orm import Session
 from datetime import date
+
+
+BUSINESS_START = 7   # 07:00
+BUSINESS_END   = 20  # 20:00 (exclusivo, i.e., até 19:59:59)
 
 def process_stock_movement(db: Session, movement: StockMovement):
     """
@@ -256,3 +261,69 @@ def decrement_client_stock(
             f"Estoque insuficiente no cliente. Em estoque: {cs.quantity}, vendido: {total}"
         )
     cs.quantity -= total
+
+
+
+def business_hours_duration(start_dt: datetime, end_dt: datetime,
+                            h_start: int = BUSINESS_START, h_end: int = BUSINESS_END) -> float:
+    """
+    Retorna quantas horas existem entre start_dt e end_dt considerando apenas
+    a janela [h_start:00, h_end:00) de cada dia. Ignora minutos/segundos fora do intervalo.
+    """
+    if end_dt <= start_dt:
+        return 0.0
+
+    total_seconds = 0
+    cur = start_dt
+    while cur.date() <= end_dt.date():
+        day_start = datetime.combine(cur.date(), time(hour=h_start))
+        day_end   = datetime.combine(cur.date(), time(hour=h_end))
+        # interseção com [start_dt, end_dt]
+        s = max(day_start, start_dt)
+        e = min(day_end,   end_dt)
+        if e > s:
+            total_seconds += (e - s).total_seconds()
+        cur += timedelta(days=1)
+
+    # mínimo de 60s para evitar divisão por zero em janelas curtíssimas
+    return max(total_seconds / 3600.0, 1/60)
+
+def get_sales_window_stats_for_product_business_hours(
+    db: Session,
+    cost_center_id: int,
+    product_id: int,
+    start_dt: datetime,
+    end_dt: datetime,
+) -> tuple[int, datetime | None, datetime | None]:
+    """
+    Soma as vendas (CLIENT_SALE) do produto na loja ENTRE start_dt e end_dt,
+    mas apenas dentro do horário comercial (07:00–20:00).
+    Retorna (total_vendido, first_created_at, last_created_at) dentro do filtro.
+    """
+    q = (
+        db.query(
+            func.coalesce(func.sum(StockMovement.quantity), 0),
+            func.min(StockMovement.created_at),
+            func.max(StockMovement.created_at),
+        )
+        .filter(
+            StockMovement.cost_center_id == cost_center_id,
+            StockMovement.product_id == product_id,
+            StockMovement.movement_type == MovementType.CLIENT_SALE,
+            StockMovement.created_at >= start_dt,
+            StockMovement.created_at <= end_dt,
+            extract('hour', StockMovement.created_at) >= BUSINESS_START,
+            extract('hour', StockMovement.created_at) <  BUSINESS_END,  # até 19:59:59
+        )
+    )
+    total, first_dt, last_dt = q.first()
+    return int(total or 0), first_dt, last_dt
+
+def get_client_stock_qty(db: Session, cost_center_id: int, product_id: int) -> int:
+    row = (
+        db.query(ClientStock.quantity)
+        .filter(ClientStock.cost_center_id == cost_center_id,
+                ClientStock.product_id == product_id)
+        .first()
+    )
+    return row[0] if row else 0

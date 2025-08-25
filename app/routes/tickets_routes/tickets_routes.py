@@ -1,8 +1,11 @@
+from datetime import datetime
 from fastapi import Query
 from app.controller.tickets_controller.tickets_controller import close_ticket_controller, process_sales_controller, search_tickets_by_term_controller
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from app.schemas.products_schemas.product_price_schema import UnitPricePayload
-from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
+from app.schemas.products_schemas.sales_schemas import MultiCycleAnalysisResponse, ProductHistoryAnalysis
+from app.schemas.tickets_schemas.tickets_schemas import TicketProductUpdateDTO, TicketRegisterSales
+from app.service.tickets_service.ticket_recommendations_service import get_daily_sales_avg_for_last_cycles, get_daily_sales_avg_for_ticket
 from app.service.tickets_service.tickets_service import TicketService
 from . import *
 from app.middleware.auth_handler import get_current_user
@@ -96,3 +99,81 @@ def get_last_approved_ticket_id(
     db: Session = Depends(get_db),
 ):
     return TicketService.get_last_approved_ticket_id_service(db, cost_center_id, product_id)
+
+@router.get("/{ticket_id}/average-daily-sales")
+def average_daily_sales_endpoint(
+    ticket_id: int,
+    evaluation_time: Optional[str] = Query(
+        default=None,
+        description="Momento de referência (ISO 8601). Ex.: 2025-08-18T14:30:00"
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Retorna, para cada produto do ticket, a média de vendas por hora e por dia comercial (07–20),
+    calculada do dia seguinte (07:00) ao último ticket aprovado que continha o produto até
+    `evaluation_time` (ou agora, se omitido).
+    """
+    try:
+        eval_dt: Optional[datetime] = None
+        if evaluation_time:
+            try:
+                eval_dt = datetime.fromisoformat(evaluation_time)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="evaluation_time inválido. Use ISO 8601 (ex.: 2025-08-18T14:30:00)")
+
+        data = get_daily_sales_avg_for_ticket(db=db, ticket_id=ticket_id, evaluation_time=eval_dt)
+        return {"ticket_id": ticket_id, "items": data}
+    except ValueError as e:
+        # Erros de validação do service (ex.: ticket não encontrado)
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao calcular médias: {str(e)}")
+    
+    
+    
+@router.get("/{ticket_id}/analysis/history", response_model=MultiCycleAnalysisResponse)
+def get_analysis_history(
+    ticket_id: int,
+    max_cycles: int = Query(8, ge=1, le=50),
+    db: Session = Depends(get_db),
+    user = Depends(get_current_user),  # se houver auth
+):
+    raw = get_daily_sales_avg_for_last_cycles(db, ticket_id, max_cycles=max_cycles)
+
+    items: List[ProductHistoryAnalysis] = []
+    for product_id, cycles in raw.items():
+        # 'cycles' já é uma lista de dicts com as chaves exigidas em CycleAnalysis
+        items.append(ProductHistoryAnalysis(product_id=product_id, cycles=cycles))
+
+    return MultiCycleAnalysisResponse(
+        ticket_id=ticket_id,
+        max_cycles=max_cycles,
+        items=items
+    )
+    
+
+@router.put("/{ticket_id}/products/{product_id}", tags=["Tickets"])
+def update_ticket_product(
+    ticket_id: int,
+    product_id: int,
+    payload: TicketProductUpdateDTO,
+    db: Session = Depends(get_db),
+):
+    try:
+        payload.ensure_not_empty()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    updated = TicketService.update_ticket_product_service(
+        db, ticket_id=ticket_id, product_id=product_id, updates=payload.model_dump()
+    )
+
+    return {
+        "ticket_id": ticket_id,
+        "product_id": product_id,
+        "quantity_ordered": int(updated.quantity_ordered),
+        "unit_price": str(updated.unit_price) if updated.unit_price is not None else None,
+        "entry_price": str(updated.entry_price) if updated.entry_price is not None else None,
+        "message": "Produto do ticket atualizado com sucesso.",
+    }

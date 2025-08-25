@@ -1,8 +1,12 @@
 from typing import Iterable, List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import case, func
-from app.models.stockMovement import ClientStock, MovementType, StockMovement
+from app.models.stockMovement import ClientStock
 
+
+from typing import Any, Dict, Iterable, List, Optional
+from sqlalchemy.orm import Session
+from app.models.stockMovement import ClientStock
 
 def get_client_stock_by_cost_center(
     db: Session,
@@ -11,41 +15,21 @@ def get_client_stock_by_cost_center(
     include_zero: bool = False,
 ) -> List[Dict[str, Any]]:
 
-
     ids: Optional[List[int]] = None
     if product_ids:
         ids = sorted({int(x) for x in product_ids if x is not None})
 
-    signed_qty = case(
-        (
-            StockMovement.movement_type == MovementType.TO_CLIENT.value,
-            StockMovement.quantity,                     # +
-        ),
-        (
-            StockMovement.movement_type == MovementType.CLIENT_SALE.value,
-            -StockMovement.quantity,                    # -
-        ),
-        (
-            StockMovement.movement_type == MovementType.CLIENT_LOSS.value,
-            -StockMovement.quantity,                    # -
-        ),
-        else_=0,
-    )
-
     q = (
-        db.query(
-            StockMovement.product_id.label("product_id"),
-            func.coalesce(func.sum(signed_qty), 0).label("quantity"),
-        )
-        .filter(StockMovement.cost_center_id == cost_center_id)
-        .group_by(StockMovement.product_id)
+        db.query(ClientStock.product_id, ClientStock.quantity)
+        .filter(ClientStock.cost_center_id == cost_center_id)
     )
-
     if ids:
-        q = q.filter(StockMovement.product_id.in_(ids))
+        q = q.filter(ClientStock.product_id.in_(ids))
 
     rows = q.all()
-    result = [{"product_id": int(r.product_id), "quantity": int(r.quantity)} for r in rows]
+
+    # Monta resultado diretamente do que está em client_stock
+    result = [{"product_id": int(pid), "quantity": int(qty)} for pid, qty in rows]
 
     # include_zero: garante zeros para ids solicitados que não apareceram
     if include_zero and ids:

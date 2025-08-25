@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
 
 class ProductBase(BaseModel):
     custom_id: Optional[int] = None
@@ -17,7 +17,7 @@ class ProductUpdate(ProductBase):
 class ProductResponse(ProductBase):
     id: int
     is_active: Optional[bool] = True
-    deleted_at: Optional[date] = None
+    deleted_at: datetime | None = None 
     current_cost: Optional[float] = None
     default_price: Optional[float] = None
     

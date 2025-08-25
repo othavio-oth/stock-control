@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import HTTPException
@@ -182,3 +182,54 @@ def get_last_approved_ticket_id_for_cc_product(
     ).first()
     if q1:
         return q1[0]
+    
+    
+def update_ticket_product(db: Session, ticket_id: int, product_id: int, updates: dict):
+    tp = (
+        db.query(TicketProduct)
+        .filter(TicketProduct.ticket_id == ticket_id, TicketProduct.product_id == product_id)
+        .first()
+    )
+    if not tp:
+        raise HTTPException(status_code=404, detail="Produto não encontrado no ticket")
+
+    for key, value in updates.items():
+        if hasattr(tp, key):
+            setattr(tp, key, value)
+
+    db.commit()
+    db.refresh(tp)
+    return tp
+
+
+
+
+def get_last_approved_ticket_by_cost_center(db: Session, cost_center_id: int):
+    return (
+        db.query(Ticket)
+        .filter(Ticket.cost_center_id == cost_center_id, Ticket.status == "approved")
+        .order_by(desc(Ticket.order_date), desc(Ticket.id))
+        .first()
+    )
+def set_ticket_status(db: Session, ticket_id: int, status: str):
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        return None
+    ticket.status = status
+    db.commit()
+    db.refresh(ticket)
+    return ticket
+
+def create_next_cycle_ticket(db: Session, base_ticket: Ticket, name: str | None = None, description: str | None = None):
+    new_ticket = Ticket(
+        name=name or f"Ticket {base_ticket.cost_center_id}-{date.today().isoformat()}",
+        description=description,
+        status="open",
+        cost_center_id=base_ticket.cost_center_id,
+        order_date=date.today(),
+        created_by=base_ticket.created_by,
+    )
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+    return new_ticket

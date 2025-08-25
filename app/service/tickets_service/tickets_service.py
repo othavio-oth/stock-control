@@ -1,15 +1,19 @@
 from datetime import datetime, timedelta
+import re
 from fastapi import HTTPException
 from pytest import Session
+from sqlalchemy import or_
 from app.models.product import Product
 from app.models.stockMovement import InventoryStock, MovementType, StockMovement
 from app.repository.stock.stock_movement_repository import process_stock_movement
-from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_last_approved_ticket_id_for_cc_product, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket, update_ticket_product_unit_price
+from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_last_approved_ticket_id_for_cc_product, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket, update_ticket_product, update_ticket_product_unit_price
 from app.models.tickets import Ticket, TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  StockMovementSaleCreate
 from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
 from fastapi import HTTPException
 from starlette.status import HTTP_404_NOT_FOUND
+from sqlalchemy.exc import IntegrityError
+
 
 
 
@@ -20,10 +24,31 @@ class TicketService:
 
     @staticmethod
     def create_ticket(db, ticket_data):
-        existing_ticket = db.query(Ticket).filter(Ticket.name == ticket_data.name).first()
-        if existing_ticket:
-            raise ValueError("Ticket com este nome já existe.")
+        base_name = ticket_data.name
+        existing_tickets = (
+            db.query(Ticket)
+            .filter(Ticket.name.like(f"{base_name}%"))
+            .all()
+        )
+
+        if existing_tickets:
+            # Extrai números existentes no formato "- #n"
+            max_num = 0
+            for t in existing_tickets:
+                if " - #" in t.name:
+                    try:
+                        num = int(t.name.split(" - #")[-1])
+                        max_num = max(max_num, num)
+                    except ValueError:
+                        pass
+                else:
+                    # Esse é o original sem sufixo
+                    max_num = max(max_num, 0)
+
+            ticket_data.name = f"{base_name} - #{max_num + 1}"
+
         return create_ticket(db, ticket_data)
+
 
     @staticmethod
     def edit_ticket(db, ticket_id, ticket_data):
@@ -151,3 +176,8 @@ class TicketService:
                 detail="Nenhum ticket aprovado encontrado para este produto/centro de custo.",
             )
         return {"id": ticket_id}
+    
+
+    @staticmethod
+    def update_ticket_product_service(db: Session, ticket_id: int, product_id: int, updates: dict):
+        return update_ticket_product(db, ticket_id, product_id, updates)
