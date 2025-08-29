@@ -2,9 +2,9 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import Query
-from app.controller.stock_controller.stock_movement_controller import  get_all_movements, get_current_stock
+from app.controller.stock_controller.stock_movement_controller import  get_all_movements, get_current_stock, register_stock_loss_controller, register_client_sale_controller
 from app.models.stockMovement import StockMovement
-from app.schemas.stock_schemas.stock_movement_schema import ClientStockResponse, InventoryResponse, StockMovementLost, StockMovementRead, SupplierPurchaseDTO, TotalProductStockResponse
+from app.schemas.stock_schemas.stock_movement_schema import ClientStockResponse, InventoryResponse, StockMovementLost, StockMovementRead, SupplierPurchaseDTO, TotalProductStockResponse, RegisterClientSalesDTO
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 router = APIRouter()
@@ -97,13 +97,24 @@ def get_client_stock(
 #     return get_cost_center_stock_controller(cost_center_id, db)
 
 
-# @router.post("/stock-movements/losses",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
-# def create_loss_record(
-#     loss_data: StockMovementLost,
-#     db: Session = Depends(get_db)):
-#     try:
-#         return register_stock_loss_controller(db, loss_data)
-#     except ValueError as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail=str(e))
+@router.post("/stock-movements/losses",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
+def create_loss_record(
+    loss_data: StockMovementLost,
+    db: Session = Depends(get_db)):
+    try:
+        return register_stock_loss_controller(db, loss_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e))
+
+@router.post("/stock-movements/sales",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
+def create_sale_record(
+    sale_data: RegisterClientSalesDTO,
+    db: Session = Depends(get_db)):
+    try:
+        return register_client_sale_controller(db, sale_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e))

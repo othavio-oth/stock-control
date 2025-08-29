@@ -1,4 +1,4 @@
-from collections import defaultdict
+﻿from collections import defaultdict
 from time import time
 from typing import Any, Dict, List, Optional, Set
 from sqlalchemy.orm import Session
@@ -16,26 +16,26 @@ from datetime import date
 
 
 BUSINESS_START = 7   # 07:00
-BUSINESS_END   = 20  # 20:00 (exclusivo, i.e., até 19:59:59)
+BUSINESS_END   = 20  # 20:00 (exclusivo, i.e., atÃ© 19:59:59)
 
 def process_stock_movement(db: Session, movement: StockMovement):
     """
-    Atualiza estoques do INVENTÁRIO e/ou do CLIENTE conforme o tipo de movimento.
+    Atualiza estoques do INVENTÃRIO e/ou do CLIENTE conforme o tipo de movimento.
     Regras:
-      - SUPPLIER_PURCHASE: inventário ++ (exige supplier_id)
-      - SUPPLIER_LOSS: inventário --
-      - TO_CLIENT: inventário -- e cliente ++
-      - CLIENT_SALE: cliente -- (+ histórico de venda)
-      - CLIENT_LOSS: cliente -- (+ histórico de perda)
+      - SUPPLIER_PURCHASE: inventÃ¡rio ++ (exige supplier_id)
+      - SUPPLIER_LOSS: inventÃ¡rio --
+      - TO_CLIENT: inventÃ¡rio -- e cliente ++
+      - CLIENT_SALE: cliente -- (+ histÃ³rico de venda)
+      - CLIENT_LOSS: cliente -- (+ histÃ³rico de perda)
     """
-    # -------- INVENTÁRIO (fornecedor) --------
+    # -------- INVENTÃRIO (fornecedor) --------
     if movement.movement_type in [
         MovementType.SUPPLIER_PURCHASE,
         MovementType.SUPPLIER_LOSS,
         MovementType.TO_CLIENT,
     ]:
         if movement.movement_type == MovementType.SUPPLIER_PURCHASE and not movement.supplier_id:
-            raise ValueError("Movimentações SUPPLIER_PURCHASE exigem supplier_id.")
+            raise ValueError("MovimentaÃ§Ãµes SUPPLIER_PURCHASE exigem supplier_id.")
 
         supplier_stock = (
             db.query(InventoryStock)
@@ -51,10 +51,10 @@ def process_stock_movement(db: Session, movement: StockMovement):
         if movement.movement_type == MovementType.SUPPLIER_PURCHASE:
             supplier_stock.quantity += movement.quantity
         else:
-            # SUPPLIER_LOSS ou TO_CLIENT → debita inventário
+            # SUPPLIER_LOSS ou TO_CLIENT â†’ debita inventÃ¡rio
             if supplier_stock.quantity < movement.quantity:
                 raise ValueError(
-                    f"Estoque do inventário insuficiente: "
+                    f"Estoque do inventÃ¡rio insuficiente: "
                     f"disp={supplier_stock.quantity}, req={movement.quantity}"
                 )
             supplier_stock.quantity -= movement.quantity
@@ -88,19 +88,19 @@ def process_stock_movement(db: Session, movement: StockMovement):
                 )
             client_stock.quantity -= movement.quantity
 
-            # Histórico de vendas (por dia)
+            # HistÃ³rico de vendas (por dia)
             sales_record = (
                 db.query(ClientSalesHistory)
                   .filter_by(product_id=movement.product_id,
                              cost_center_id=movement.cost_center_id,
-                             date=date.today())
+                             date=(movement.created_at.date() if movement.created_at else date.today()))
                   .first()
             )
             if not sales_record:
                 sales_record = ClientSalesHistory(
                     product_id=movement.product_id,
                     cost_center_id=movement.cost_center_id,
-                    date=date.today(),
+                    date=(movement.created_at.date() if movement.created_at else date.today()),
                     sold_quantity=0
                 )
                 db.add(sales_record)
@@ -114,19 +114,19 @@ def process_stock_movement(db: Session, movement: StockMovement):
                 )
             client_stock.quantity -= movement.quantity
 
-            # Histórico de perdas (por dia)
+            # HistÃ³rico de perdas (por dia)
             loss_record = (
                 db.query(ClientLossHistory)
                   .filter_by(product_id=movement.product_id,
                              cost_center_id=movement.cost_center_id,
-                             date=date.today())
+                             date=(movement.created_at.date() if movement.created_at else date.today()))
                   .first()
             )
             if not loss_record:
                 loss_record = ClientLossHistory(
                     product_id=movement.product_id,
                     cost_center_id=movement.cost_center_id,
-                    date=date.today(),
+                    date=(movement.created_at.date() if movement.created_at else date.today()),
                     lost_quantity=0,
                     reason="Perda registrada"
                 )
@@ -154,8 +154,8 @@ def get_existing_sales_days(
     end: date,
 ) -> Set[date]:
     """
-    Retorna os dias que já possuem vendas registradas no intervalo [start, end].
-    Útil para evitar duplicidade ao distribuir o total por dia.
+    Retorna os dias que jÃ¡ possuem vendas registradas no intervalo [start, end].
+    Ãštil para evitar duplicidade ao distribuir o total por dia.
     """
     rows = (
         db.query(ClientSalesHistory.date)
@@ -178,7 +178,7 @@ def upsert_sales_for_day(
     qty: int,
 ) -> None:
     """
-    Faz upsert da venda diária (somando ao que já existir no dia).
+    Faz upsert da venda diÃ¡ria (somando ao que jÃ¡ existir no dia).
     """
     sales = (
         db.query(ClientSalesHistory)
@@ -196,7 +196,7 @@ def upsert_sales_for_day(
     sales.sold_quantity += qty
 
 
-# ——— StockMovement ————————————————————————————————————————————————
+# â€”â€”â€” StockMovement â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
 
 def create_client_sale_movement(
     db: Session,
@@ -207,7 +207,7 @@ def create_client_sale_movement(
     product_unit_cost: Optional[float] = None,
 ) -> None:
     """
-    Cria uma movimentação do tipo CLIENT_SALE no dia da venda.
+    Cria uma movimentaÃ§Ã£o do tipo CLIENT_SALE no dia da venda.
     """
     mv = StockMovement(
         product_id=product_id,
@@ -220,7 +220,7 @@ def create_client_sale_movement(
     db.add(mv)
 
 
-# ——— ClientStock ————————————————————————————————————————————————
+# â€”â€”â€” ClientStock â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
 
 def get_or_create_client_stock_for_update(
     db: Session,
@@ -228,7 +228,7 @@ def get_or_create_client_stock_for_update(
     product_id: int,
 ) -> ClientStock:
     """
-    Retorna o ClientStock com lock (FOR UPDATE). Cria com quantity=0 se não existir.
+    Retorna o ClientStock com lock (FOR UPDATE). Cria com quantity=0 se nÃ£o existir.
     """
     cs = (
         db.query(ClientStock)
@@ -254,7 +254,7 @@ def decrement_client_stock(
 ) -> None:
     """
     Decrementa o estoque do cliente pelo total vendido.
-    Se allow_negative=False, lança erro quando não houver quantidade suficiente.
+    Se allow_negative=False, lanÃ§a erro quando nÃ£o houver quantidade suficiente.
     """
     if not allow_negative and cs.quantity < total:
         raise ValueError(
@@ -278,14 +278,14 @@ def business_hours_duration(start_dt: datetime, end_dt: datetime,
     while cur.date() <= end_dt.date():
         day_start = datetime.combine(cur.date(), time(hour=h_start))
         day_end   = datetime.combine(cur.date(), time(hour=h_end))
-        # interseção com [start_dt, end_dt]
+        # interseÃ§Ã£o com [start_dt, end_dt]
         s = max(day_start, start_dt)
         e = min(day_end,   end_dt)
         if e > s:
             total_seconds += (e - s).total_seconds()
         cur += timedelta(days=1)
 
-    # mínimo de 60s para evitar divisão por zero em janelas curtíssimas
+    # mÃ­nimo de 60s para evitar divisÃ£o por zero em janelas curtÃ­ssimas
     return max(total_seconds / 3600.0, 1/60)
 
 def get_sales_window_stats_for_product_business_hours(
@@ -297,7 +297,7 @@ def get_sales_window_stats_for_product_business_hours(
 ) -> tuple[int, datetime | None, datetime | None]:
     """
     Soma as vendas (CLIENT_SALE) do produto na loja ENTRE start_dt e end_dt,
-    mas apenas dentro do horário comercial (07:00–20:00).
+    mas apenas dentro do horÃ¡rio comercial (07:00â€“20:00).
     Retorna (total_vendido, first_created_at, last_created_at) dentro do filtro.
     """
     q = (
@@ -313,7 +313,7 @@ def get_sales_window_stats_for_product_business_hours(
             StockMovement.created_at >= start_dt,
             StockMovement.created_at <= end_dt,
             extract('hour', StockMovement.created_at) >= BUSINESS_START,
-            extract('hour', StockMovement.created_at) <  BUSINESS_END,  # até 19:59:59
+            extract('hour', StockMovement.created_at) <  BUSINESS_END,  # atÃ© 19:59:59
         )
     )
     total, first_dt, last_dt = q.first()
@@ -327,3 +327,4 @@ def get_client_stock_qty(db: Session, cost_center_id: int, product_id: int) -> i
         .first()
     )
     return row[0] if row else 0
+

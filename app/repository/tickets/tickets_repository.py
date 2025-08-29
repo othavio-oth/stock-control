@@ -162,28 +162,70 @@ def update_ticket_product_unit_price(db: Session, ticket_product_id: int, unit_p
     return tp
 
 def get_last_approved_ticket_id_for_cc_product(
-    db: Session, cost_center_id: int, product_id: int
+    db: Session, cost_center_id: int, product_id: Optional[int]
 ) -> Optional[int]:
     """
-    Retorna o ID do último ticket aprovado para (cost_center_id, product_id).
-    Preferência: approved_at mais recente. Fallback: status == 'APPROVED'.
+    Retorna o ID do último ticket aprovado.
+    - Se "product_id" for fornecido: filtra por (cost_center_id, product_id).
+    - Se "product_id" não for fornecido (None/0): considera apenas o cost_center.
+
+    Critério: preferir "approved_at" mais recente; fallback para status "approved"
+    ordenando por "order_date" (e id para desempate).
     """
-    # 1) Preferência: approved_at definido
-    q1 = (
-        db.query(Ticket.id)
-        .join(TicketProduct, TicketProduct.ticket_id == Ticket.id)
-        .filter(
-            Ticket.cost_center_id == cost_center_id,
-            TicketProduct.product_id == product_id,
-            Ticket.approved_at.isnot(None),         # requer o campo approved_at
-        )
-        .order_by(desc(Ticket.approved_at), desc(Ticket.id))
-        .limit(1)
-    ).first()
-    if q1:
-        return q1[0]
-    
-    
+    if product_id:
+        # 1) Preferência: approved_at definido
+        q1 = (
+            db.query(Ticket.id)
+            .join(TicketProduct, TicketProduct.ticket_id == Ticket.id)
+            .filter(
+                Ticket.cost_center_id == cost_center_id,
+                TicketProduct.product_id == product_id,
+                Ticket.approved_at.isnot(None),
+            )
+            .order_by(desc(Ticket.approved_at), desc(Ticket.id))
+            .limit(1)
+        ).first()
+        if q1:
+            return q1[0]
+
+        # 2) Fallback: status == "approved" (caso não haja approved_at)
+        q2 = (
+            db.query(Ticket.id)
+            .join(TicketProduct, TicketProduct.ticket_id == Ticket.id)
+            .filter(
+                Ticket.cost_center_id == cost_center_id,
+                TicketProduct.product_id == product_id,
+                Ticket.status == "approved",
+            )
+            .order_by(desc(Ticket.order_date), desc(Ticket.id))
+            .limit(1)
+        ).first()
+        return q2[0] if q2 else None
+    else:
+        # Sem product_id: pegar último ticket aprovado do cost center
+        q1 = (
+            db.query(Ticket.id)
+            .filter(
+                Ticket.cost_center_id == cost_center_id,
+                Ticket.approved_at.isnot(None),
+            )
+            .order_by(desc(Ticket.approved_at), desc(Ticket.id))
+            .limit(1)
+        ).first()
+        if q1:
+            return q1[0]
+
+        q2 = (
+            db.query(Ticket.id)
+            .filter(
+                Ticket.cost_center_id == cost_center_id,
+                Ticket.status == "approved",
+            )
+            .order_by(desc(Ticket.order_date), desc(Ticket.id))
+            .limit(1)
+        ).first()
+        return q2[0] if q2 else None
+
 def update_ticket_product(db: Session, ticket_id: int, product_id: int, updates: dict):
     tp = (
         db.query(TicketProduct)

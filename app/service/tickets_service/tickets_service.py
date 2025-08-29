@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
+from typing import Optional
 import re
 from fastapi import HTTPException
 from pytest import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 from app.models.product import Product
 from app.models.stockMovement import InventoryStock, MovementType, StockMovement
 from app.repository.stock.stock_movement_repository import process_stock_movement
@@ -167,7 +169,7 @@ class TicketService:
         return ticket
     
     @staticmethod
-    def get_last_approved_ticket_id_service(db: Session, cost_center_id: int, product_id: int
+    def get_last_approved_ticket_id_service(db: Session, cost_center_id: int, product_id: Optional[int]
     ) -> dict:
         ticket_id = get_last_approved_ticket_id_for_cc_product(db, cost_center_id, product_id)
         if not ticket_id:
@@ -175,7 +177,19 @@ class TicketService:
                 status_code=HTTP_404_NOT_FOUND,
                 detail="Nenhum ticket aprovado encontrado para este produto/centro de custo.",
             )
-        return {"id": ticket_id}
+        # Carrega o ticket completo com produtos (e dados do produto)
+        ticket = (
+            db.query(Ticket)
+            .options(joinedload(Ticket.products).joinedload(TicketProduct.product))
+            .filter(Ticket.id == ticket_id)
+            .first()
+        )
+        if not ticket:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail="Ticket não encontrado após localizar o ID aprovado.",
+            )
+        return ticket
     
 
     @staticmethod

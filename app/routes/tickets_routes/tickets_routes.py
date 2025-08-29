@@ -76,7 +76,12 @@ def set_unit_price(ticket_product_id: int, body: UnitPricePayload, db: Session =
     tp = TicketService.set_ticket_product_unit_price(db, ticket_product_id, body.unit_price)
     if not tp:
         raise HTTPException(404, "TicketProduct não encontrado")
-    return {"id": tp.id, "ticket_id": tp.ticket_id, "product_id": tp.product_id, "unit_price": float(tp.unit_price or 0)}
+    return {
+        "id": tp.id,
+        "ticket_id": tp.ticket_id,
+        "product_id": tp.product_id,
+        "unit_price": float(tp.unit_price) if tp.unit_price is not None else None,
+    }
 
 
 @router.post("/{ticket_id}/approve" , tags=["Tickets"])
@@ -92,10 +97,10 @@ def approve_ticket_endpoint(ticket_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao aprovar ticket: {str(e)}")
     
-@router.get("/last-approved" , tags=["Tickets"])
+@router.get("/last-approved" , response_model=TicketResponse, tags=["Tickets"]) 
 def get_last_approved_ticket_id(
     cost_center_id: int = Query(..., ge=1),
-    product_id: int = Query(..., ge=1),
+    product_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),
 ):
     return TicketService.get_last_approved_ticket_id_service(db, cost_center_id, product_id)

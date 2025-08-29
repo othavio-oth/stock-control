@@ -25,5 +25,8 @@ def get_current_stock(db):
 #     return StockMovementService.get_monthly_sales_losses_stats_service(db, year)
 
 
-# def register_stock_loss_controller(db, loss_data):
-#     return StockMovementService.register_stock_loss_service(db, loss_data)
+def register_stock_loss_controller(db, loss_data):
+    return StockMovementService.register_stock_loss_service(db, loss_data)
+
+def register_client_sale_controller(db, sale_data):
+    return StockMovementService.register_client_sale_service(db, sale_data)

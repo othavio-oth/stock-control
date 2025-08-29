@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 
 from app.models.tickets import Ticket, TicketProduct
-from app.models.stockMovement import ClientStock, ClientLossHistory
+from app.models.stockMovement import ClientStock, ClientLossHistory, ClientSalesHistory
 from app.repository.tickets.tickets_repository import get_ticket_by_id
 
 BUSINESS_START = time(7, 0)   # 07:00
@@ -91,6 +91,20 @@ def _get_losses_between(db: Session, cost_center_id: int, product_id: int, start
     )
     return int(total or 0)
 
+def _get_sales_between(db: Session, cost_center_id: int, product_id: int, start_d: date, end_d: date) -> int:
+    """Soma as vendas em ClientSalesHistory no intervalo [start_d, end_d]."""
+    total = (
+        db.query(func.coalesce(func.sum(ClientSalesHistory.sold_quantity), 0))
+        .filter(
+            ClientSalesHistory.cost_center_id == cost_center_id,
+            ClientSalesHistory.product_id == product_id,
+            ClientSalesHistory.date >= start_d,
+            ClientSalesHistory.date <= end_d,
+        )
+        .scalar()
+    )
+    return int(total or 0)
+
 def get_daily_sales_avg_for_ticket(
     db: Session, ticket_id: int, evaluation_time: Optional[datetime] = None
 ) -> List[Dict]:
@@ -162,6 +176,12 @@ def get_daily_sales_avg_for_ticket(
         sold_qty = max(sent_qty - current_stock - losses, 0)
 
         # 8) horas úteis no período
+        # Ajuste: usa vendas reais do período, se existirem
+        sales_in_period = _get_sales_between(
+            db, cost_center_id, product_id, start_dt.date(), evaluation_time.date()
+        )
+        if sales_in_period > 0:
+            sold_qty = sales_in_period
         period_hours = _business_hours_between(start_dt, evaluation_time)
 
         if period_hours <= 0:
@@ -240,16 +260,25 @@ def get_daily_sales_avg_for_last_cycles(
             continue
 
         cycles: List[Dict] = []
-        for prev in prev_tickets:
+        # prev_tickets em ordem decrescente (mais recente primeiro)
+        for i, prev in enumerate(prev_tickets):
             # início do ciclo = 07:00 do dia seguinte ao order_date do ticket anterior
             start_dt = datetime.combine(prev.order_date + timedelta(days=1), BUSINESS_START)
 
-            if evaluation_time <= start_dt:
+            # limite superior do ciclo: início do próximo ticket aprovado (ou do ticket atual)
+            if i == 0:
+                next_boundary_date = ticket.order_date
+            else:
+                next_boundary_date = prev_tickets[i - 1].order_date
+            cycle_end_dt = datetime.combine(next_boundary_date + timedelta(days=1), BUSINESS_START)
+            end_dt = min(evaluation_time, cycle_end_dt)
+
+            if end_dt <= start_dt:
                 # Se o eval_time não ultrapassa o início, não há horas úteis a acumular
                 cycles.append({
                     "ticket_id": prev.id,
                     "start": start_dt.isoformat(),
-                    "end": evaluation_time.isoformat(),
+                    "end": end_dt.isoformat(),
                     "period_hours": 0.0,
                     "sent_qty_prev_cycle": 0,
                     "current_client_stock": _get_client_stock(db, cost_center_id, product_id),
@@ -262,11 +291,14 @@ def get_daily_sales_avg_for_last_cycles(
                 continue
 
             sent_qty = _get_ticket_qty_for_product(db, prev.id, product_id)
-            current_stock = _get_client_stock(db, cost_center_id, product_id)
-            losses = _get_losses_between(db, cost_center_id, product_id, start_dt.date(), evaluation_time.date())
+            # Para ciclos antigos, evitamos usar o estoque atual (não representa o fim do ciclo)
+            current_stock = _get_client_stock(db, cost_center_id, product_id) if i == 0 else 0
+            losses = _get_losses_between(db, cost_center_id, product_id, start_dt.date(), end_dt.date())
 
-            sold_qty = max(sent_qty - current_stock - losses, 0)
-            period_hours = _business_hours_between(start_dt, evaluation_time)
+            # Vendas reais no período
+            sales_in_period = _get_sales_between(db, cost_center_id, product_id, start_dt.date(), end_dt.date())
+            sold_qty = sales_in_period
+            period_hours = _business_hours_between(start_dt, end_dt)
 
             if period_hours <= 0:
                 avg_per_hour = 0.0
@@ -278,7 +310,7 @@ def get_daily_sales_avg_for_last_cycles(
             cycles.append({
                 "ticket_id": prev.id,
                 "start": start_dt.isoformat(),
-                "end": evaluation_time.isoformat(),
+                "end": end_dt.isoformat(),
                 "period_hours": round(period_hours, 4),
                 "sent_qty_prev_cycle": int(sent_qty),
                 "current_client_stock": int(current_stock),
