@@ -28,48 +28,63 @@ def hash_password(password: str) -> str:
     return hashed.decode('utf-8')
 
 def upgrade():
-    # 1. Definindo os dados iniciais com TODOS os campos obrigatórios
+    # 1) Dados dos usuários a semear
     users_data = [
         {
             "username": "admin",
             "email": "admin@empresa.com",
-            "hashed_password": hash_password("admin"),
+            "password_plain": "admin",
             "full_name": "Administrador do Sistema",
             "is_active": True,
-            "is_superuser": True,  # Agora explicitamente definido
-            "nickname": None,  # Campo opcional explicitado
-            "last_login": None  # Campo opcional explicitado
+            "is_superuser": True,
+            "nickname": None,
+            "last_login": None,
         },
         {
             "username": "usuario_teste",
             "email": "teste@empresa.com",
-            "hashed_password": hash_password("teste"),
+            "password_plain": "teste",
             "full_name": "Usuário de Teste",
             "is_active": True,
-            "is_superuser": False,  # Valor padrão explicitado
+            "is_superuser": False,
             "nickname": "Zé Teste",
-            "last_login": None
-        }
+            "last_login": None,
+        },
     ]
 
-    # 2. Inserção em lote com todos os campos
-    op.bulk_insert(
-        sa.table('users',
-            sa.column('username'),
-            sa.column('email'),
-            sa.column('hashed_password'),
-            sa.column('full_name'),
-            sa.column('nickname'),
-            sa.column('is_active'),
-            sa.column('is_superuser'),
-            sa.column('last_login'),
-            sa.column('date_joined')
-        ),
-        [
-            {**user, "date_joined": datetime.now()}
-            for user in users_data
-        ]
+    conn = op.get_bind()
+    stmt = sa.text(
+        """
+        INSERT INTO users (
+            username, email, hashed_password, full_name, nickname,
+            is_active, is_superuser, last_login, date_joined
+        ) VALUES (
+            :username, :email, :hashed_password, :full_name, :nickname,
+            :is_active, :is_superuser, :last_login, :date_joined
+        )
+        ON CONFLICT DO NOTHING
+        """
     )
 
+    now = datetime.now()
+    for u in users_data:
+        params = {
+            "username": u["username"],
+            "email": u["email"],
+            "hashed_password": hash_password(u["password_plain"]),
+            "full_name": u["full_name"],
+            "nickname": u["nickname"],
+            "is_active": u["is_active"],
+            "is_superuser": u["is_superuser"],
+            "last_login": u["last_login"],
+            "date_joined": now,
+        }
+        conn.execute(stmt, params)
+
 def downgrade():
-    op.drop_table('users')
+    # Remove apenas os usuários semeados por esta revisão
+    op.execute(
+        sa.text(
+            "DELETE FROM users WHERE email IN (:e1, :e2)"
+        ).bindparams(e1="admin@empresa.com", e2="teste@empresa.com")
+    )

@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
-from app.models.user import User, UserRole, Permission, RolePermission
+from app.models.user import User, UserRole, Permission, RolePermission, Role
 from app.middleware.db import get_db
 from fastapi.security import OAuth2PasswordBearer
 import os
@@ -65,3 +65,27 @@ def has_permission(permission: str):
         return True
 
     return Depends(permission_checker)
+
+
+def is_admin(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Permite superusuário
+    if getattr(current_user, "is_superuser", False):
+        return True
+
+    # Verifica se possui o papel 'admin'
+    admin_role = (
+        db.query(Role)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .filter(UserRole.user_id == current_user.id, Role.name == "admin")
+        .first()
+    )
+    if admin_role:
+        return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Admin privileges required",
+    )

@@ -45,6 +45,14 @@ def _business_hours_between(start: datetime, end: datetime) -> float:
 
     return total_hours
 
+def _business_days_count(start: datetime, end: datetime) -> int:
+    """Quantidade de dias de calendário considerados dentro da janela de negócios.
+    Retorna pelo menos 1 quando end >= start no mesmo dia útil, evitando divisão por janelas muito pequenas.
+    """
+    if end < start:
+        return 0
+    return (end.date() - start.date()).days + 1
+
 def _get_last_approved_ticket_for_product_before(
     db: Session, cost_center_id: int, product_id: int, reference_order_date: date
 ) -> Optional[Ticket]:
@@ -175,21 +183,27 @@ def get_daily_sales_avg_for_ticket(
         # 7) vendido por inferência (sem precisar de primeira/última venda)
         sold_qty = max(sent_qty - current_stock - losses, 0)
 
-        # 8) horas úteis no período
-        # Ajuste: usa vendas reais do período, se existirem
+        # 8) cálculo de médias
+        # Regra: se houver vendas diárias registradas (granularidade por dia),
+        # calculamos a média diária diretamente por número de dias, evitando
+        # distorções por horas parciais do dia.
         sales_in_period = _get_sales_between(
             db, cost_center_id, product_id, start_dt.date(), evaluation_time.date()
         )
         if sales_in_period > 0:
             sold_qty = sales_in_period
-        period_hours = _business_hours_between(start_dt, evaluation_time)
-
-        if period_hours <= 0:
-            avg_per_hour = 0.0
-            avg_per_day = 0.0
+            days = _business_days_count(start_dt, evaluation_time)
+            avg_per_day = (sold_qty / days) if days > 0 else 0.0
+            avg_per_hour = avg_per_day / BUSINESS_HOURS_PER_DAY if BUSINESS_HOURS_PER_DAY > 0 else 0.0
         else:
-            avg_per_hour = sold_qty / period_hours
-            avg_per_day = avg_per_hour * BUSINESS_HOURS_PER_DAY  # “por dia” (13h)
+            # Sem vendas diárias registradas: usa inferência, mas suaviza por dias
+            days = _business_days_count(start_dt, evaluation_time)
+            if days <= 0:
+                avg_per_day = 0.0
+                avg_per_hour = 0.0
+            else:
+                avg_per_day = sold_qty / days
+                avg_per_hour = avg_per_day / BUSINESS_HOURS_PER_DAY if BUSINESS_HOURS_PER_DAY > 0 else 0.0
 
         results.append({
             "product_id": product_id,
@@ -298,14 +312,15 @@ def get_daily_sales_avg_for_last_cycles(
             # Vendas reais no período
             sales_in_period = _get_sales_between(db, cost_center_id, product_id, start_dt.date(), end_dt.date())
             sold_qty = sales_in_period
-            period_hours = _business_hours_between(start_dt, end_dt)
 
-            if period_hours <= 0:
-                avg_per_hour = 0.0
+            # Para histórico por dia, calcular média diária por número de dias (evita explosões)
+            days = _business_days_count(start_dt, end_dt)
+            if days <= 0:
                 avg_per_day = 0.0
+                avg_per_hour = 0.0
             else:
-                avg_per_hour = sold_qty / period_hours
-                avg_per_day = avg_per_hour * BUSINESS_HOURS_PER_DAY
+                avg_per_day = sold_qty / days
+                avg_per_hour = avg_per_day / BUSINESS_HOURS_PER_DAY if BUSINESS_HOURS_PER_DAY > 0 else 0.0
 
             cycles.append({
                 "ticket_id": prev.id,

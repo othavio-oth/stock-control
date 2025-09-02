@@ -5,7 +5,7 @@ from app.middleware.db import get_db
 import logging
 
 from app.middleware.auth_handler import login
-from app.middleware.permission import has_permission
+from app.middleware.permission import has_permission, is_admin
 
 from app.schemas.users_schemas.permissions_schema import PermissionResponse, PermissionBase, PermissionRoleResponse, PermissionRequest, PermissionCreate, PermissionUpdate
 from app.controller.users_controller.permission_controller import list_permissions, create_permission, edit_permission, remove_permission, assign_permission, unassign_permission, get_role_permissions, get_roles_from_permissions 
@@ -52,6 +52,7 @@ __all__= [
     
     "login",
     "has_permission",
+    "is_admin",
     
     "PermissionResponse",
     "PermissionBase",
