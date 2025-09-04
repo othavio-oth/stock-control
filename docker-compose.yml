@@ -16,6 +16,11 @@ services:
       - rede_strategy_inventory
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   strategy_backend_inventory:
     build: .
@@ -28,7 +33,8 @@ services:
     networks:
       - rede_strategy_inventory
     depends_on:
-      - strategy_db_inventory
+      strategy_db_inventory:
+        condition: service_healthy
     volumes:
       - ./app:/app/app 
       - .:/app
