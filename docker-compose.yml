@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   strategy_db_inventory:
-    image: postgres:16
+    image: postgres:15
     container_name: strategy_db_inventory
     restart: unless-stopped
     env_file:
