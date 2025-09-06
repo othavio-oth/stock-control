@@ -32,6 +32,16 @@ jobs:
           docker push "$IMAGE_LATEST"
           docker push "$IMAGE_SHA"
 
+      - name: Upload docker-compose.yml to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: "${{ secrets.DEPLOY_PATH }}"
+          overwrite: true
+
       - name: Deploy (SSH)
         uses: appleboy/ssh-action@v1.2.0
         with:
