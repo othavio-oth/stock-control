@@ -25,7 +25,7 @@ jobs:
 
       - name: Build & Push
         run: |
-          docker build -t ghcr.io/othavio-oth/strategy:latest ./strategy_backend_inventory
+          docker build -t ghcr.io/othavio-oth/strategy:latest .
           docker push ghcr.io/othavio-oth/strategy:latest
 
       - name: Deploy (SSH)
