@@ -23,10 +23,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push
+      - name: Build & Push (latest + SHA)
+        env:
+          IMAGE_LATEST: ghcr.io/othavio-oth/strategy:latest
+          IMAGE_SHA: ghcr.io/othavio-oth/strategy:${{ github.sha }}
         run: |
-          docker build -t ghcr.io/othavio-oth/strategy:latest .
-          docker push ghcr.io/othavio-oth/strategy:latest
+          docker build -t "$IMAGE_LATEST" -t "$IMAGE_SHA" .
+          docker push "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
 
       - name: Deploy (SSH)
         uses: appleboy/ssh-action@v1.2.0
@@ -38,5 +42,5 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose pull
-            docker compose up -d
+            docker compose up -d --pull always --force-recreate
             docker image prune -f
