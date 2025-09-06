@@ -1,6 +1,6 @@
 from . import *
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.get("/roles/", response_model=List[RoleResponse], tags=["Roles"])
 def get_all_roles(db: Session = Depends(get_db)):

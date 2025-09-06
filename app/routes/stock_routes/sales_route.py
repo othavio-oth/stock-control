@@ -8,7 +8,7 @@ from app.schemas.stock_schemas.stock_movement_schema import RegisterClientSalesD
 from app.service.products_service.products_sales_service import ProductSalesService
 
 
-router = APIRouter( tags=["Sales"])
+router = APIRouter( tags=["Sales"],redirect_slashes=False)
 
 @router.post("/register")
 def register_client_sales_simple(payload: RegisterClientSalesDTO, db: Session = Depends(get_db)):

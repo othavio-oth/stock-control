@@ -1,6 +1,6 @@
 from . import *
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.post("/", response_model=UserResponse, tags=["Users"])
 def create_new_user(user: UserCreate, db: Session = Depends(get_db), _ = Depends(is_admin)):

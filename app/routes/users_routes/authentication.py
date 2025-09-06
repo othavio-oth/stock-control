@@ -6,7 +6,7 @@ logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.post("/login" , tags=["Authentication"])
 def login_route(data: dict):

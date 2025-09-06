@@ -1,7 +1,7 @@
 from app.controller.products_controller.category_controller import create_category, delete_category, edit_category, list_categories
 from . import *
 
-router = APIRouter()
+router = APIRouter( redirect_slashes=False)
 
 @router.get("/categories/", response_model=List[CategoryResponse], tags=["Categories"])
 def get_categories(db: Session = Depends(get_db)):

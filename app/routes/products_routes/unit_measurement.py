@@ -1,6 +1,6 @@
 from . import *
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.get("/units/", response_model=List[UnitMeasurementResponse], tags=["Units"]) 
 def get_all_units(db: Session = Depends(get_db)):

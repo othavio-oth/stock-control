@@ -5,7 +5,7 @@ from app.middleware.db import get_db
 from app.schemas.products_schemas.product_price_schema import ProductCurrentPriceResponse, ProductPriceHistoryCreate, ProductPriceHistoryUpdate
 from app.service.products_service.products_price_service import ProductPriceHistoryService
 
-router = APIRouter( tags=["prices"])
+router = APIRouter( tags=["prices"], redirect_slashes=False)
 
 @router.post("/")
 def create_price_endpoint(data: ProductPriceHistoryCreate, db: Session = Depends(get_db)):

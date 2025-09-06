@@ -1,6 +1,6 @@
 from . import *
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.get("/conversions/", response_model=List[ConversionResponse], tags=["Conversions"])
 def get_conversions(db: Session = Depends(get_db)):

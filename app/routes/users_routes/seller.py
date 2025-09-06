@@ -3,7 +3,7 @@ from app.repository.seller.seller_repository import create_seller
 from app.schemas.users_schemas.seller_schema import SellerCreate, SellerResponse
 from . import *
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.post("/", response_model=SellerResponse , tags=["Sellers"])
 def create_new_seller(seller: SellerCreate, db: Session = Depends(get_db)):

@@ -10,7 +10,7 @@ from app.service.tickets_service.tickets_service import TicketService
 from . import *
 from app.middleware.auth_handler import get_current_user
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.get("/tickets/", response_model=AllTicketsResponse, tags=["Tickets"])
 def get_tickets( page: int = Query(1, ge=1),db: Session = Depends(get_db)):

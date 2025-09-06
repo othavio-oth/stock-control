@@ -7,7 +7,7 @@ from app.models.stockMovement import StockMovement
 from app.schemas.stock_schemas.stock_movement_schema import ClientStockResponse, InventoryResponse, StockMovementLost, StockMovementRead, SupplierPurchaseDTO, TotalProductStockResponse, RegisterClientSalesDTO
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 

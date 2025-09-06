@@ -1,6 +1,6 @@
 from . import *
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.get("/permissions/", response_model=List[PermissionResponse], tags=["Permissions"])
 def get_all_permissions(db: Session = Depends(get_db)):

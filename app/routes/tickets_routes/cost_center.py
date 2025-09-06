@@ -5,7 +5,7 @@ from app.repository.tickets.cost_center_repository import search_cost_centers_by
 from app.schemas.list_all_schemas.list_all_responses import AllCostCentersResponse
 from . import *
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.get("/cost_centers/", response_model=Union[AllCostCentersResponse, List[CostCenterResponse]], tags=["Cost Centers"])
 def get_cost_centers(page:int = Query(None, ge=1),db: Session = Depends(get_db)):

@@ -3,7 +3,7 @@ from app.repository.products.chain_repository import create_chain, delete_chain
 from app.schemas.products_schemas.retail_chain_schemas import RetailChainResponse
 from . import *
 
-router = APIRouter()
+router = APIRouter( redirect_slashes=False)
 
 @router.get("/chains/", response_model=List[RetailChainResponse], tags=["Retail Chain"])
 def get_chains(db: Session = Depends(get_db)):
