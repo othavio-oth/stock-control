@@ -3,10 +3,12 @@ from . import *
 
 router = APIRouter( redirect_slashes=False)
 
+@router.get("/categories", include_in_schema=False)
 @router.get("/categories/", response_model=List[CategoryResponse], tags=["Categories"])
 def get_categories(db: Session = Depends(get_db)):
     return list_categories(db)
 
+@router.post("/categories", include_in_schema=False)
 @router.post("/categories/", response_model=CategoryResponse, tags=["Categories"])
 def create_new_category(category_data: CategoryCreate, db: Session = Depends(get_db)):
     try:
@@ -14,6 +16,7 @@ def create_new_category(category_data: CategoryCreate, db: Session = Depends(get
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.put("/categories/{category_id}/", include_in_schema=False)
 @router.put("/categories/{category_id}", response_model=CategoryResponse,tags=["Categories"] )
 def update_category(category_id: int, category_data: CategoryUpdate, db: Session = Depends(get_db)):
     try:
@@ -21,6 +24,7 @@ def update_category(category_id: int, category_data: CategoryUpdate, db: Session
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.delete("/categories/{category_id}/", include_in_schema=False)
 @router.delete("/categories/{category_id}", tags=["Categories"])
 def remove_category(category_id: int, db: Session = Depends(get_db)):
     return delete_category(category_id, db)

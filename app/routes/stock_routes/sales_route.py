@@ -10,6 +10,7 @@ from app.service.products_service.products_sales_service import ProductSalesServ
 
 router = APIRouter( tags=["Sales"],redirect_slashes=False)
 
+@router.post("/register/", include_in_schema=False)
 @router.post("/register")
 def register_client_sales_simple(payload: RegisterClientSalesDTO, db: Session = Depends(get_db)):
     try:

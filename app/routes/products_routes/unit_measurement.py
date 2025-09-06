@@ -2,10 +2,12 @@ from . import *
 
 router = APIRouter(redirect_slashes=False)
 
+@router.get("/units", include_in_schema=False)
 @router.get("/units/", response_model=List[UnitMeasurementResponse], tags=["Units"]) 
 def get_all_units(db: Session = Depends(get_db)):
     return list_unit_measurement(db)
 
+@router.post("/units", include_in_schema=False)
 @router.post("/units/", response_model=UnitMeasurementResponse, tags=["Units"])
 def create_new_unit(unit_data: UnitMeasurementBase, db: Session = Depends(get_db)):
     try:
@@ -13,6 +15,7 @@ def create_new_unit(unit_data: UnitMeasurementBase, db: Session = Depends(get_db
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.put("/units/{unit_id}/", include_in_schema=False)
 @router.put("/units/{unit_id}", response_model=UnitMeasurementResponse,tags=["Units"])
 def update_unit(unit_id: int, unit_data: UnitMeasurementBase, db: Session = Depends(get_db)):
     try:
@@ -20,6 +23,7 @@ def update_unit(unit_id: int, unit_data: UnitMeasurementBase, db: Session = Depe
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.delete("/units/{unit_id}/", include_in_schema=False)
 @router.delete("/units/{unit_id}", tags=["Units"])
 def remove_unit(unit_id: int, db: Session = Depends(get_db)):
     return delete_unit_measurement(unit_id, db)

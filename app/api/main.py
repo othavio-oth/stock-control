@@ -4,6 +4,7 @@ from app.routes.tickets_routes import cost_center, tickets_routes
 from app.routes.stock_routes import sales_route, stock_router
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
+from app.middleware.permission import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
@@ -23,23 +24,86 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # 
-app.include_router(user.router, prefix="/users",)
-app.include_router(authentication.router, prefix="/authentication",)
-app.include_router(permissions.router, prefix="/permissions_adm",)
+app.include_router(
+    user.router,
+    prefix="/users",
+    dependencies=[Depends(get_current_user)],
+)
 
-app.include_router(roles.router, prefix="/roles_adm",)
-app.include_router(chain_route.router, prefix="/chains_adm",)
-app.include_router(unit_measurement.router, prefix="/units_adm",)
-app.include_router(unit_conversion.router, prefix="/conversions_adm",)
-app.include_router(category.router, prefix="/categories_adm",)
-app.include_router(products.router, prefix="/products_adm",)
-app.include_router(supplier_route.router, prefix="/suppliers_adm",)
-app.include_router(products_price_route.router, prefix="/products_adm/prices")
-app.include_router(sales_route.router, prefix="/sales",)
-app.include_router(cost_center.router, prefix="/cost_centers_adm",)
-app.include_router(tickets_routes.router, prefix="/tickets_adm",)
-app.include_router(stock_router.router, prefix="/stock_adm",)
-app.include_router(seller.router, prefix="/sellers_adm")
+# Mantém authentication sem dependência para permitir /authentication/login sem token
+app.include_router(authentication.router, prefix="/authentication")
+
+app.include_router(
+    permissions.router,
+    prefix="/permissions_adm",
+    dependencies=[Depends(get_current_user)],
+)
+
+app.include_router(
+    roles.router,
+    prefix="/roles_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    chain_route.router,
+    prefix="/chains_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    unit_measurement.router,
+    prefix="/units_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    unit_conversion.router,
+    prefix="/conversions_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    category.router,
+    prefix="/categories_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    products.router,
+    prefix="/products_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    supplier_route.router,
+    prefix="/suppliers_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    products_price_route.router,
+    prefix="/products_adm/prices",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    sales_route.router,
+    prefix="/sales",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    cost_center.router,
+    prefix="/cost_centers_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    tickets_routes.router,
+    prefix="/tickets_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    stock_router.router,
+    prefix="/stock_adm",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    seller.router,
+    prefix="/sellers_adm",
+    dependencies=[Depends(get_current_user)],
+)
 
 @app.get("/ping")
 def ping():

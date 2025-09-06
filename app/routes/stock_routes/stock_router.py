@@ -12,22 +12,29 @@ router = APIRouter(redirect_slashes=False)
 
 
 
+@router.get("/stock-movements/", include_in_schema=False)
 @router.get("/stock-movements", response_model=List[StockMovementRead], tags=["Stock Movements"])
 def get_stock_movements(db: Session = Depends(get_db)):
     return get_all_movements(db)
 
 
 
+@router.get("/stock-movements/current-stock/", include_in_schema=False)
 @router.get("/stock-movements/current-stock", response_model=List[InventoryResponse], tags=["Stock Movements"])
 def get_total_in_system(db: Session = Depends(get_db)):
     return get_current_stock(db)
 
 
 
+@router.post("/add-stock/", include_in_schema=False)
 @router.post("/add-stock", response_model=StockMovementRead, status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
 def add_stock( dto:SupplierPurchaseDTO, db: Session = Depends(get_db),):
     return StockMovementService.add_stock_with_cost_average(db, dto)
 
+@router.get(
+    "/client-stock/",
+    include_in_schema=False,
+)
 @router.get(
     "/client-stock",
     response_model=List[ClientStockResponse],
@@ -97,6 +104,7 @@ def get_client_stock(
 #     return get_cost_center_stock_controller(cost_center_id, db)
 
 
+@router.post("/stock-movements/losses/", include_in_schema=False)
 @router.post("/stock-movements/losses",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
 def create_loss_record(
     loss_data: StockMovementLost,
@@ -108,6 +116,7 @@ def create_loss_record(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e))
 
+@router.post("/stock-movements/sales/", include_in_schema=False)
 @router.post("/stock-movements/sales",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
 def create_sale_record(
     sale_data: RegisterClientSalesDTO,

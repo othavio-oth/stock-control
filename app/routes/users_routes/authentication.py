@@ -8,10 +8,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(redirect_slashes=False)
 
+@router.post("/login/" , include_in_schema=False)
 @router.post("/login" , tags=["Authentication"])
 def login_route(data: dict):
     return login(data)
 
+@router.get("/validate-token/", include_in_schema=False)
 @router.get("/validate-token", tags=["Authentication"])
 async def validate_token(payload: dict = Depends(verify_token), db: Session = Depends(get_db)):
     user_id = payload.get("sub")

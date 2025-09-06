@@ -7,6 +7,7 @@ from app.service.products_service.products_price_service import ProductPriceHist
 
 router = APIRouter( tags=["prices"], redirect_slashes=False)
 
+@router.post("", include_in_schema=False)
 @router.post("/")
 def create_price_endpoint(data: ProductPriceHistoryCreate, db: Session = Depends(get_db)):
     try:
@@ -14,10 +15,12 @@ def create_price_endpoint(data: ProductPriceHistoryCreate, db: Session = Depends
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.get("/products/{product_id}/", include_in_schema=False)
 @router.get("/products/{product_id}")
 def get_current_prices_endpoint(product_id: int, db: Session = Depends(get_db)):
     return ProductPriceHistoryService.get_current_prices_service_by_product(db, product_id)
 
+@router.patch("/{price_id}/", include_in_schema=False)
 @router.patch("/{price_id}")
 def update_price_endpoint(price_id: int, data: ProductPriceHistoryUpdate, db: Session = Depends(get_db)):
     result = ProductPriceHistoryService.update_price_servicejj(db, price_id, data)
@@ -25,6 +28,7 @@ def update_price_endpoint(price_id: int, data: ProductPriceHistoryUpdate, db: Se
         raise HTTPException(status_code=404, detail="Price history not found")
     return result
 
+@router.delete("/{price_id}/", include_in_schema=False)
 @router.delete("/{price_id}")
 def delete_price_endpoint(price_id: int, db: Session = Depends(get_db)):
     if not ProductPriceHistoryService.delete_price_service(db, price_id):
@@ -32,10 +36,12 @@ def delete_price_endpoint(price_id: int, db: Session = Depends(get_db)):
     return {"message": "Price history deleted successfully"}
 
 
+@router.get("", include_in_schema=False)
 @router.get("/")
 def get_current_prices_endpoint( db: Session = Depends(get_db)):
     return ProductPriceHistoryService.get_all_current_prices_service(db)
 
+@router.get("/current-prices/", include_in_schema=False)
 @router.get("/current-prices", response_model=List[ProductCurrentPriceResponse])
 def get_current_prices_batch(
     cost_center_id: int = Query(..., description="ID do cost center"),

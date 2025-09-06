@@ -12,10 +12,12 @@ from app.middleware.auth_handler import get_current_user
 
 router = APIRouter(redirect_slashes=False)
 
+@router.get("/tickets", include_in_schema=False)
 @router.get("/tickets/", response_model=AllTicketsResponse, tags=["Tickets"])
 def get_tickets( page: int = Query(1, ge=1),db: Session = Depends(get_db)):
     return list_tickets(page, db)
 
+@router.post("/tickets", include_in_schema=False)
 @router.post("/tickets/", response_model=TicketResponse, tags=["Tickets"])
 def create_new_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db), user: int = Depends(get_current_user)):
     try:
@@ -25,15 +27,18 @@ def create_new_ticket(ticket_data: TicketCreate, db: Session = Depends(get_db), 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.put("/tickets/{ticket_id}/", include_in_schema=False)
 @router.put("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Tickets"])
 def update_ticket(ticket_id: int, ticket_data: TicketResponse, db: Session = Depends(get_db)):
     return edit_ticket(ticket_id, ticket_data, db)
 
+@router.delete("/tickets/{ticket_id}/", include_in_schema=False)
 @router.delete("/tickets/{ticket_id}", tags=["Tickets"])
 def remove_ticket(ticket_id: int, db: Session = Depends(get_db)):
     return delete_ticket(ticket_id, db)
 
 
+@router.get("/tickets/search/", include_in_schema=False)
 @router.get("/tickets/search", response_model=AllTicketsResponse, tags=["Tickets"])
 def search_tickets_any_route(
     term: str,
@@ -44,26 +49,32 @@ def search_tickets_any_route(
     return tickets
 
 
+@router.get("/tickets/{ticket_id}/products", include_in_schema=False)
 @router.get("/tickets/{ticket_id}/products/", response_model=List[int], tags=["Tickets"])
 def get_products_for_ticket(ticket_id: int, db: Session = Depends(get_db)):
     return get_products_for_ticket_controller(ticket_id, db)
 
+@router.get("/tickets/products", include_in_schema=False)
 @router.get("/tickets/products/", response_model=List[TicketProductResponse], tags=["Tickets"])
 def get_ticket_products_route(db: Session = Depends(get_db)):
     return get_ticket_products_controller(db)
 
+@router.post("/tickets/products", include_in_schema=False)
 @router.post("/tickets/products/", response_model=TicketProductResponse, tags=["Tickets"])
 def add_product_to_ticket_route(product_data: TicketProductCreate, db: Session = Depends(get_db)):
     return add_product_to_ticket_controller(product_data, db)
 
+@router.delete("/tickets/products/{ticket_product_id}/", include_in_schema=False)
 @router.delete("/tickets/products/{ticket_product_id}", tags=["Tickets"])
 def remove_product_from_ticket_route(ticket_product_id: int, db: Session = Depends(get_db)):
     return remove_product_from_ticket_controller(ticket_product_id, db)
 
+@router.post("/tickets/{id}/close/", include_in_schema=False)
 @router.post("/tickets/{id}/close", tags=["Tickets"])
 def close_ticket_product(id: int, db: Session = Depends(get_db)):
     return close_ticket_controller( id, db)
 
+@router.post("/tickets/update-sales/", include_in_schema=False)
 @router.post("/tickets/update-sales", response_model=TicketRegisterSales, tags=["Tickets"])
 def update_ticket_products_and_create_movements(
     ticket: TicketRegisterSales,
@@ -71,6 +82,7 @@ def update_ticket_products_and_create_movements(
 ):
     return process_sales_controller(ticket, db)
 
+@router.patch("/products/{ticket_product_id}/unit-price/", include_in_schema=False)
 @router.patch("/products/{ticket_product_id}/unit-price", tags=["Tickets"])
 def set_unit_price(ticket_product_id: int, body: UnitPricePayload, db: Session = Depends(get_db)):
     tp = TicketService.set_ticket_product_unit_price(db, ticket_product_id, body.unit_price)
@@ -84,6 +96,7 @@ def set_unit_price(ticket_product_id: int, body: UnitPricePayload, db: Session =
     }
 
 
+@router.post("/{ticket_id}/approve/" , include_in_schema=False)
 @router.post("/{ticket_id}/approve" , tags=["Tickets"])
 def approve_ticket_endpoint(ticket_id: int, db: Session = Depends(get_db)):
     """
@@ -97,6 +110,7 @@ def approve_ticket_endpoint(ticket_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao aprovar ticket: {str(e)}")
     
+@router.get("/last-approved/" , include_in_schema=False)
 @router.get("/last-approved" , response_model=TicketResponse, tags=["Tickets"]) 
 def get_last_approved_ticket_id(
     cost_center_id: int = Query(..., ge=1),
@@ -105,6 +119,7 @@ def get_last_approved_ticket_id(
 ):
     return TicketService.get_last_approved_ticket_id_service(db, cost_center_id, product_id)
 
+@router.get("/{ticket_id}/average-daily-sales/", include_in_schema=False)
 @router.get("/{ticket_id}/average-daily-sales")
 def average_daily_sales_endpoint(
     ticket_id: int,
@@ -137,6 +152,7 @@ def average_daily_sales_endpoint(
     
     
     
+@router.get("/{ticket_id}/analysis/history/", include_in_schema=False)
 @router.get("/{ticket_id}/analysis/history", response_model=MultiCycleAnalysisResponse)
 def get_analysis_history(
     ticket_id: int,
@@ -158,6 +174,7 @@ def get_analysis_history(
     )
     
 
+@router.put("/{ticket_id}/products/{product_id}/", include_in_schema=False)
 @router.put("/{ticket_id}/products/{product_id}", tags=["Tickets"])
 def update_ticket_product(
     ticket_id: int,
