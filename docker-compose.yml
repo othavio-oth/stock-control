@@ -1,8 +1,10 @@
+version: "3.9"
+
 services:
   strategy_db_inventory:
-    image: postgres:15
+    image: postgres:16
     container_name: strategy_db_inventory
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -10,8 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: ${TZ}
-    ports:
-      - "5433:5432"
+
     networks:
       - rede_strategy_inventory
     volumes:
@@ -23,23 +24,26 @@ services:
       retries: 10
 
   strategy_backend_inventory:
-    build: .
+    image: ghcr.io/othavio-oth/strategy:latest
     container_name: strategy_backend_inventory
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8000:8000"       
     networks:
       - rede_strategy_inventory
     depends_on:
       strategy_db_inventory:
         condition: service_healthy
-    volumes:
-      - ./app:/app/app 
-      - .:/app
+
     command: >
       sh -c "uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/users || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
 networks:
   rede_strategy_inventory:

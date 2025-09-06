@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 
-    
+   
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://strategy-web-inventory.vercel.app", "https://strategy-web-inventory-git-master-othaviooths-projects.vercel.app", "https://strategy-web-inventory-dqp5wdm4q-othaviooths-projects.vercel.app", "http://localhost:3000"],
@@ -40,6 +40,9 @@ app.include_router(tickets_routes.router, prefix="/tickets_adm",)
 app.include_router(stock_router.router, prefix="/stock_adm",)
 app.include_router(seller.router, prefix="/sellers_adm")
 
+@app.get("/ping")
+def ping():
+    return {"status": "ok"}
 
 class GenericalError(HTTPException):
     def __init__(self, detail="Erro interno do servidor"):
