@@ -1,0 +1,45 @@
+services:
+  strategy_db_inventory_stage:
+    image: postgres:15
+    container_name: strategy_db_inventory_stage
+    restart: unless-stopped
+    env_file:
+      - .env.stage
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    networks:
+      - rede_strategy_inventory_stage
+    volumes:
+      - postgres_data_stage:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"   # expõe o banco de stage na porta 5434 do host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  strategy_backend_inventory_stage:
+    build: .
+    container_name: strategy_backend_inventory_stage
+    restart: unless-stopped
+    env_file:
+      - .env.stage
+    ports:
+      - "127.0.0.1:8001:8000"   # a API de stage roda em outra porta
+    depends_on:
+      strategy_db_inventory_stage:
+        condition: service_healthy
+    command: >
+      sh -c "uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - rede_strategy_inventory_stage
+
+networks:
+  rede_strategy_inventory_stage:
+
+volumes:
+  postgres_data_stage:
