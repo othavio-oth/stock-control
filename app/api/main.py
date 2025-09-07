@@ -3,9 +3,11 @@ from app.routes.users_routes import seller, user, authentication, permissions, r
 from app.routes.tickets_routes import cost_center, tickets_routes
 from app.routes.stock_routes import sales_route, stock_router
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Response
 from app.middleware.permission import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
+from app.middleware.error_notifier import ErrorNotifierMiddleware
+import os
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -16,6 +18,7 @@ app.router.redirect_slashes = False
 
 
    
+app.add_middleware(ErrorNotifierMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://strategy-web-inventory.vercel.app", "https://strategy-web-inventory-git-master-othaviooths-projects.vercel.app", "https://strategy-web-inventory-dqp5wdm4q-othaviooths-projects.vercel.app", "http://localhost:3000"],
@@ -108,6 +111,17 @@ app.include_router(
 @app.get("/ping")
 def ping():
     return {"msg": "pong v2"}   
+
+
+# Debug/test-only routes (enabled with ENABLE_DEBUG_ROUTES=true)
+if os.getenv("ENABLE_DEBUG_ROUTES", "false").lower() == "true":
+    @app.get("/_debug/error")
+    def debug_error():
+        raise RuntimeError("Forced error for testing ErrorNotifierMiddleware")
+
+    @app.get("/_debug/500")
+    def debug_500():
+        return Response(content="Forced 500", status_code=500)
 
 
 class GenericalError(HTTPException):

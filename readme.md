@@ -112,3 +112,21 @@ Problemas comuns
 
 Licença
 - Uso interno. Adapte este README às políticas do seu projeto.
+
+E-mails de erro (ErrorNotifier)
+- O middleware `ErrorNotifierMiddleware` envia e‑mail em erros 5xx/exceções não tratadas.
+- Variáveis necessárias: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_TO`.
+
+Desenvolvimento local com MailHog
+- Foi adicionado `docker-compose.override.yml` que sobe um MailHog e configura o backend para usar SMTP local.
+- Subir com override: `docker compose up -d` (o override é lido automaticamente se estiver no mesmo diretório).
+- UI do MailHog: http://localhost:8025 (mensagens capturadas).
+- Para desabilitar, remova/renomeie o `docker-compose.override.yml` ou rode sem ele: `docker compose -f docker-compose.yml up -d`.
+
+Testar o envio de e‑mail de erro (local)
+- Com o override ativo, habilitamos rotas de debug:
+  - `GET /_debug/error` — lança uma exceção não tratada (gera e‑mail + HTTP 500)
+  - `GET /_debug/500` — retorna 500 explícito (gera e‑mail)
+- Exemplo:
+  - `curl http://localhost:8000/_debug/error`
+  - Verifique o MailHog em `http://localhost:8025` para ver a mensagem.
