@@ -107,7 +107,8 @@ app.include_router(
 
 @app.get("/ping")
 def ping():
-    return {"status": "ok"}
+    return {"msg": "pong v2"}   
+
 
 class GenericalError(HTTPException):
     def __init__(self, detail="Erro interno do servidor"):
