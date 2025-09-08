@@ -24,7 +24,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push (prod: latest + sha)
+      - name: "Build & Push (prod: latest + sha)"
         env:
           IMAGE_LATEST: ghcr.io/othavio-oth/strategy:latest
           IMAGE_SHA: ghcr.io/othavio-oth/strategy:${{ github.sha }}
