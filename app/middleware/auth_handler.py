@@ -41,21 +41,24 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return encoded_jwt
 
 def login(data):
-    email = data['username']
-    password = data['password']
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password are required")
     
     engine = create_engine(DATABASE_URL)
     Session = sessionmaker(bind=engine)
     session = Session()
-    user = session.query(User).filter(User.username == email, User.is_active == True).first()
+    user = session.query(User).filter(User.username == username, User.is_active == True).first()
 
     if not user:
         session.close()
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     if not verify_password(password, user.hashed_password):
         session.close()
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": str(user.id)}, expires_delta=access_token_expires)

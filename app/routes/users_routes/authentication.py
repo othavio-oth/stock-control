@@ -1,7 +1,7 @@
 from app.middleware.auth_handler import verify_token
 from . import *
 from app.models.user import User
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import Request
 
 logging.basicConfig(level=logging.INFO)
 
@@ -9,11 +9,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(redirect_slashes=False)
 
-@router.post("/login/" , include_in_schema=False)
-@router.post("/login" , tags=["Authentication"])
-def login_route(form_data: OAuth2PasswordRequestForm = Depends()):
-    # Accept Swagger's OAuth2 password flow (form-encoded)
-    credentials = {"username": form_data.username, "password": form_data.password}
+@router.post("/login/", include_in_schema=False)
+@router.post("/login", tags=["Authentication"])
+async def login_route(request: Request):
+    # Accept both JSON (username/password) and form-encoded (OAuth2) payloads
+    content_type = request.headers.get("content-type", "").lower()
+    if content_type.startswith("application/json"):
+        payload = await request.json()
+        credentials = {"username": payload.get("username"), "password": payload.get("password")}
+    else:
+        form = await request.form()
+        credentials = {"username": form.get("username"), "password": form.get("password")}
+
     return login(credentials)
 
 @router.get("/validate-token/", include_in_schema=False)
