@@ -1,7 +1,6 @@
 services:
   strategy_db_inventory_stage:
     image: postgres:15
-    container_name: strategy_db_inventory_stage
     restart: unless-stopped
     env_file:
       - .env.stage
@@ -24,7 +23,6 @@ services:
 
   strategy_backend_inventory_stage:
     build: .
-    container_name: strategy_backend_inventory_stage
     restart: unless-stopped
     env_file:
       - .env.stage
