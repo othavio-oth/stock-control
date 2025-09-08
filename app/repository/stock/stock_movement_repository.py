@@ -6,6 +6,8 @@ from sqlalchemy import case, extract, func
 from app.models.tickets import Ticket, TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  StockMovementLost, TotalProductStockResponse
 from app.models.stockMovement import ClientLossHistory, ClientSalesHistory, ClientStock, MovementType, InventoryStock
+from app.models.product import Supplier
+from sqlalchemy.orm import joinedload
 from sqlalchemy import and_ 
 from datetime import datetime, timedelta
 from app.models.stockMovement import StockMovement
@@ -135,8 +137,44 @@ def process_stock_movement(db: Session, movement: StockMovement):
 
     db.commit()
 
-def get_all_stock_movements(db: Session):
-    return db.query(StockMovement).offset(0).limit(100).all()
+def get_all_stock_movements(
+    db: Session,
+    movement_type: Optional[str] = None,
+    product_id: Optional[int] = None,
+):
+    q = db.query(StockMovement)
+    if product_id is not None:
+        q = q.filter(StockMovement.product_id == product_id)
+    if movement_type:
+        try:
+            # Aceita valor string (ex: "supplier_purchase") e converte p/ Enum
+            mt = MovementType(movement_type)
+        except Exception:
+            # fallback: tenta comparar como string literal (caso já venha válido)
+            mt = movement_type
+        q = q.filter(StockMovement.movement_type == mt)
+    return q.order_by(StockMovement.created_at.desc()).offset(0).limit(100).all()
+
+
+def get_product_entries(
+    db: Session,
+    product_id: int,
+    page: int = 1,
+    page_size: int = 20,
+):
+    offset = (page - 1) * page_size
+    base_q = (
+        db.query(StockMovement)
+        .options(joinedload(StockMovement.supplier))
+        .filter(
+            StockMovement.product_id == product_id,
+            StockMovement.movement_type == MovementType.SUPPLIER_PURCHASE,
+        )
+        .order_by(StockMovement.created_at.desc())
+    )
+    total = base_q.count()
+    items = base_q.offset(offset).limit(page_size).all()
+    return total, items
 
 
 def get_current_stock(db:Session):
@@ -327,4 +365,3 @@ def get_client_stock_qty(db: Session, cost_center_id: int, product_id: int) -> i
         .first()
     )
     return row[0] if row else 0
-

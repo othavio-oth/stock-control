@@ -141,7 +141,15 @@ class TicketService:
 
         # 3) Cria as movimentações TO_CLIENT (saída do inventário / entrada no cliente)
         for tp in ticket.products:
-            product = db.query(Product).filter(Product.id == tp.product_id).first()
+            product = (
+                db.query(Product)
+                .filter(
+                    Product.id == tp.product_id,
+                    Product.is_active == True,
+                    Product.deleted_at.is_(None),
+                )
+                .first()
+            )
             if not product:
                 raise HTTPException(status_code=404, detail=f"Produto {tp.product_id} não encontrado")
 

@@ -1,8 +1,8 @@
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 
-def get_all_movements(db):
-    return StockMovementService.get_all_movements_service(db)
+def get_all_movements(db, movement_type: str | None = None, product_id: int | None = None):
+    return StockMovementService.get_all_movements_service(db, movement_type=movement_type, product_id=product_id)
 
 def get_current_stock(db):
     return StockMovementService.get_current_stock_service(db)
@@ -30,3 +30,6 @@ def register_stock_loss_controller(db, loss_data):
 
 def register_client_sale_controller(db, sale_data):
     return StockMovementService.register_client_sale_service(db, sale_data)
+
+def get_product_entries_controller(db, product_id: int, page: int, page_size: int):
+    return StockMovementService.get_product_entries_service(db, product_id, page, page_size)

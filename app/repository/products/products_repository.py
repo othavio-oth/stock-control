@@ -6,13 +6,18 @@ from app.models.stockMovement import MovementType, StockMovement
 from . import *
 
 def get_all_products(page,db):
-    query = (db.query(Product)
-             .options(joinedload(Product.cost_history))
-             .filter(Product.is_active == True))
+    query = (
+        db.query(Product)
+        .options(joinedload(Product.cost_history))
+        .filter(
+            Product.is_active == True,
+            Product.deleted_at.is_(None)
+        )
+    )
     if page is not None:
         page_size = 20
         offset = (page - 1) * page_size
-        total = db.query(Product).count()
+        total = query.count()
         products = query.offset(offset).limit(page_size).all()
         total_pages = (total + page_size - 1) // page_size
         return {
@@ -30,7 +35,16 @@ def get_all_products(page,db):
 
 
 def get_product_by_id(product_id, db):
-    return db.query(Product).options(joinedload(Product.cost_history)).filter(Product.id == product_id, Product.is_active==True).first()
+    return (
+        db.query(Product)
+        .options(joinedload(Product.cost_history))
+        .filter(
+            Product.id == product_id,
+            Product.is_active == True,
+            Product.deleted_at.is_(None)
+        )
+        .first()
+    )
 
 def create_product(db, product_data):
     product = Product(**product_data.dict())
@@ -61,12 +75,18 @@ def delete_product( db: Session, product: Product):
 def search_products_by_term( search_term: str,page:int,db: Session):
     page_size = 20
     offset = (page - 1) * page_size
-    base_query = db.query(Product).options(joinedload(Product.cost_history)).filter(
+    base_query = (
+        db.query(Product)
+        .options(joinedload(Product.cost_history))
+        .filter(
+            Product.is_active == True,
+            Product.deleted_at.is_(None),
             or_(
                 Product.custom_id == int(search_term) if search_term.isdigit() else False,
                 Product.name.ilike(f"%{search_term}%"),
-            )
+            ),
         )
+    )
     total = base_query.count()
     total_pages = (total + page_size - 1) // page_size
 

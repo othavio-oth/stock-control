@@ -122,7 +122,15 @@ def get_products_by_ticket(db, ticket_id):
     return db.query(TicketProduct).filter(TicketProduct.ticket_id == ticket_id).order_by(TicketProduct.id).all()
 
 def add_product_to_ticket(db, product_data):
-    product = db.query(Product).filter(Product.id == product_data.product_id).first()
+    product = (
+        db.query(Product)
+        .filter(
+            Product.id == product_data.product_id,
+            Product.is_active == True,
+            Product.deleted_at.is_(None),
+        )
+        .first()
+    )
     ticket_product = TicketProduct(
     **product_data.dict(),
 )

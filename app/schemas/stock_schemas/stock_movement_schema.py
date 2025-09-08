@@ -38,6 +38,17 @@ class StockMovementRead(StockMovementBase):
     class Config:
         from_attributes = True 
         
+class StockEntryRead(BaseModel):
+    id: int
+    product_id: int
+    quantity: int
+    unit_cost: Optional[float] = None
+    supplier_id: Optional[int] = None
+    supplier_name: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 class StockTotal(BaseModel):
     product_id: int
     total: int

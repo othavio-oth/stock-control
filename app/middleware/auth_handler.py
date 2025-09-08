@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from app.models.user import User
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer,  HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional, TypeVar
 from pydantic import BaseModel
@@ -24,7 +24,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 security = HTTPBearer()
 DATABASE_URL = Config.DATABASE_URL
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# Point the OAuth2 docs flow to our real login endpoint
+from app.middleware.security import oauth2_scheme
 
 def verify_password(plain_password, hashed_password):
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))

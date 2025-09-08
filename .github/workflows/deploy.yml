@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: ["master", "stage"]
+    branches: ["master"]
   workflow_dispatch: {}
 
 permissions:
@@ -33,13 +33,13 @@ jobs:
           docker push "$IMAGE_LATEST"
           docker push "$IMAGE_SHA"
 
-      - name: Upload compose files to VM (PROD)
+      - name: Upload compose file to VM (PROD)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,docker-compose.stage.yml"
+          source: "docker-compose.yml"
           target: "${{ secrets.DEPLOY_PATH }}"
           overwrite: true
 
@@ -56,52 +56,3 @@ jobs:
             docker compose -p strategy-prod pull
             docker compose -p strategy-prod up -d --pull always --force-recreate
             docker compose -p strategy-prod ps
-            docker compose -p strategy-prod logs --tail=80 strategy_backend_inventory || true
-
-  build-and-deploy-stage:
-    if: github.ref == 'refs/heads/stage'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & Push (stage: staging + staging-<sha>)
-        env:
-          IMAGE_STAGE_LATEST: ghcr.io/othavio-oth/strategy:staging
-          IMAGE_STAGE_SHA: ghcr.io/othavio-oth/strategy:staging-${{ github.sha }}
-        run: |
-          docker build -t "$IMAGE_STAGE_LATEST" -t "$IMAGE_STAGE_SHA" .
-          docker push "$IMAGE_STAGE_LATEST"
-          docker push "$IMAGE_STAGE_SHA"
-
-      - name: Upload compose files to VM (STAGE)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,docker-compose.stage.yml"
-          target: "${{ secrets.DEPLOY_PATH }}"
-          overwrite: true
-
-      - name: Deploy STAGE (SSH)
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -euo pipefail
-            cd ${{ secrets.DEPLOY_PATH }}
-            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose -p strategy-stage -f docker-compose.yml -f docker-compose.stage.yml --env-file .env.stage pull
-            docker compose -p strategy-stage -f docker-compose.yml -f docker-compose.stage.yml --env-file .env.stage up -d --pull always --force-recreate
-            docker compose -p strategy-stage -f docker-compose.yml -f docker-compose.stage.yml ps
-            docker compose -p strategy-stage -f docker-compose.yml -f docker-compose.stage.yml logs --tail=80 strategy_backend_inventory_stage || true

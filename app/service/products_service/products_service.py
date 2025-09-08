@@ -3,6 +3,7 @@ from app.models.tickets import CostCenter
 from app.repository.products.products_repository import  create_product, get_all_products, search_products_by_term, update_product, delete_product, get_product_by_id
 from sqlalchemy.orm import Session
 from app.models.product import Product
+from app.models.stockMovement import StockMovement, MovementType
 class ProductService:
 
     
@@ -35,7 +36,51 @@ class ProductService:
     @staticmethod
     def get_all_products_service(page,db):
         return get_all_products(page,db)
-    
+
+    @staticmethod
+    def get_product_entry_history(product_id: int, page: int, db: Session):
+        # Garante que o produto existe e não está deletado
+        product = get_product_by_id(product_id, db)
+        if not product:
+            raise HTTPException(404, "Produto não encontrado.")
+
+        page_size = 20
+        offset = (page - 1) * page_size
+
+        base_q = (
+            db.query(StockMovement)
+            .filter(
+                StockMovement.product_id == product_id,
+                StockMovement.movement_type == MovementType.SUPPLIER_PURCHASE,
+            )
+            .order_by(StockMovement.created_at.desc())
+        )
+
+        total = base_q.count()
+        items = base_q.offset(offset).limit(page_size).all()
+        total_pages = (total + page_size - 1) // page_size
+
+        # Monta payload compatível com AllEntriesProductsResponse
+        try:
+            custom_id_int = int(product.custom_id) if product.custom_id and str(product.custom_id).isdigit() else 0
+        except Exception:
+            custom_id_int = 0
+
+        product_summary = {
+            "id": product.id,
+            "description": getattr(product, "name", ""),
+            "custom_id": custom_id_int,
+        }
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "product": product_summary,
+        }
+
 
     
     # @staticmethod

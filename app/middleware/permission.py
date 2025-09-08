@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from app.models.user import User, UserRole, Permission, RolePermission, Role
 from app.middleware.db import get_db
-from fastapi.security import OAuth2PasswordBearer
+from app.middleware.security import oauth2_scheme
 import os
 from dotenv import load_dotenv
 
@@ -12,7 +12,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# imported from shared security module
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -20,11 +20,19 @@ def get_current_user(
 ):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        sub = payload.get("sub")
+        if sub is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User ID not found in token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        try:
+            user_id = int(sub)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid user id in token.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
     except JWTError:

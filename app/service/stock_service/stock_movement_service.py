@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from app.models.product import ProductCostHistory
 from app.models.stockMovement import MovementType, StockMovement, InventoryStock
 from app.repository.stock.client_stock_repository import get_client_stock_by_cost_center
-from app.repository.stock.stock_movement_repository import get_all_stock_movements, get_current_stock
+from app.repository.stock.stock_movement_repository import get_all_stock_movements, get_current_stock, get_product_entries
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementLost, RegisterClientSalesDTO, StockMovementRead
+from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead
 
 class StockMovementService:
     
@@ -15,9 +16,12 @@ class StockMovementService:
         return get_current_stock(db)
 
     @staticmethod
-    def get_all_movements_service(db: Session):
-        
-        return get_all_stock_movements(db)
+    def get_all_movements_service(
+        db: Session,
+        movement_type: Optional[str] = None,
+        product_id: Optional[int] = None,
+    ):
+        return get_all_stock_movements(db, movement_type=movement_type, product_id=product_id)
 
     @staticmethod
     def add_stock_with_cost_average(db: Session, dto:SupplierPurchaseDTO):
@@ -27,7 +31,8 @@ class StockMovementService:
             product_id=dto.product_id,
             quantity=dto.quantity,
             movement_type=MovementType.SUPPLIER_PURCHASE.value,
-            product_unit_cost=dto.unit_cost, 
+            supplier_id=dto.supplier_id,
+            product_unit_cost=dto.unit_cost,
             created_at=datetime.now()
         )
 
@@ -109,6 +114,25 @@ class StockMovementService:
             product_ids=product_ids,
             include_zero=include_zero,
         )
+
+    @staticmethod
+    def get_product_entries_service(db: Session, product_id: int, page: int = 1, page_size: int = 20):
+        total, items = get_product_entries(db, product_id=product_id, page=page, page_size=page_size)
+        # map to schema payload
+        result = []
+        for mv in items:
+            result.append(
+                StockEntryRead(
+                    id=mv.id,
+                    product_id=mv.product_id,
+                    quantity=mv.quantity,
+                    unit_cost=float(mv.product_unit_cost) if mv.product_unit_cost is not None else None,
+                    supplier_id=mv.supplier_id,
+                    supplier_name=(mv.supplier.name if getattr(mv, "supplier", None) else None),
+                    created_at=mv.created_at,
+                )
+            )
+        return result
 
     @staticmethod
     def register_stock_loss_service(db: Session, loss_data: StockMovementLost):

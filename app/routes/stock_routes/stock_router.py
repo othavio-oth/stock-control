@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional, Literal
 
 from fastapi import Query
-from app.controller.stock_controller.stock_movement_controller import  get_all_movements, get_current_stock, register_stock_loss_controller, register_client_sale_controller
+from app.controller.stock_controller.stock_movement_controller import  get_all_movements, get_current_stock, register_stock_loss_controller, register_client_sale_controller, get_product_entries_controller
 from app.models.stockMovement import StockMovement
 from app.schemas.stock_schemas.stock_movement_schema import ClientStockResponse, InventoryResponse, StockMovementLost, StockMovementRead, SupplierPurchaseDTO, TotalProductStockResponse, RegisterClientSalesDTO
+from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 router = APIRouter(redirect_slashes=False)
@@ -14,8 +15,30 @@ router = APIRouter(redirect_slashes=False)
 
 @router.get("/stock-movements/", include_in_schema=False)
 @router.get("/stock-movements", response_model=List[StockMovementRead], tags=["Stock Movements"])
-def get_stock_movements(db: Session = Depends(get_db)):
-    return get_all_movements(db)
+def get_stock_movements(
+    db: Session = Depends(get_db),
+    movement_type: Optional[Literal[
+        "supplier_purchase", "to_client", "client_sale", "client_loss", "supplier_loss"
+    ]] = Query(None, description="Filtrar por tipo de movimento"),
+    product_id: Optional[int] = Query(None, description="Filtrar por ID do produto"),
+):
+    return get_all_movements(db, movement_type=movement_type, product_id=product_id)
+
+
+@router.get("/stock-movements/product/{product_id}/entries/", include_in_schema=False)
+@router.get(
+    "/stock-movements/product/{product_id}/entries",
+    response_model=List[StockEntryRead],
+    tags=["Stock Movements"],
+    summary="Entradas (fornecedor) por produto",
+)
+def get_product_entries(
+    product_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return get_product_entries_controller(db, product_id, page, page_size)
 
 
 
