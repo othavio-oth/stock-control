@@ -33,6 +33,7 @@ jobs:
           docker push "$IMAGE_LATEST"
           docker push "$IMAGE_SHA"
 
+
       - name: Upload compose file to VM (PROD)
         uses: appleboy/scp-action@v0.1.7
         with:
