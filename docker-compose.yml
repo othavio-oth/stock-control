@@ -1,8 +1,7 @@
-version: "3.9"
-
 services:
   strategy_db_inventory:
     image: postgres:15
+    container_name: strategy_db_inventory
     restart: unless-stopped
     env_file:
       - .env
@@ -23,6 +22,7 @@ services:
 
   strategy_backend_inventory:
     image: ghcr.io/othavio-oth/strategy:latest
+    container_name: strategy_backend_inventory
     restart: unless-stopped
     env_file:
       - .env
@@ -39,7 +39,7 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - rede_strategy_inventory   
+      - rede_strategy_inventory
 
 networks:
   rede_strategy_inventory:
