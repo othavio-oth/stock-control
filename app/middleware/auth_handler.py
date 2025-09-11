@@ -24,8 +24,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 security = HTTPBearer()
 DATABASE_URL = Config.DATABASE_URL
 
-# Point the OAuth2 docs flow to our real login endpoint
-from app.middleware.security import oauth2_scheme
+# Shared HTTP Bearer scheme (no OAuth2 flow)
+from app.middleware.security import http_bearer
 
 def verify_password(plain_password, hashed_password):
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
@@ -72,13 +72,14 @@ def decode_jwt(token: str) -> dict:
     except:
         return {}
     
-def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Não autorizado",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("sub")
         if user_id is None:
