@@ -3,11 +3,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.product import ProductCostHistory
-from app.models.stockMovement import MovementType, StockMovement, InventoryStock
+from app.models.stockMovement import MovementType, StockMovement, InventoryStock, ClientSalesHistory, ClientLossHistory
 from app.repository.stock.client_stock_repository import get_client_stock_by_cost_center
 from app.repository.stock.stock_movement_repository import get_all_stock_movements, get_current_stock, get_product_entries
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementLost, RegisterClientSalesDTO, StockMovementRead
-from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead
+from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead
+from datetime import date
 
 class StockMovementService:
     
@@ -196,3 +197,125 @@ class StockMovementService:
         db.commit()
         db.refresh(mv)
         return mv
+
+    @staticmethod
+    def delete_supplier_purchase_entry_service(db: Session, movement_id: int) -> StockEntryRead:
+        """
+        Exclui uma entrada de estoque (SUPPLIER_PURCHASE) mais recente para o produto, revertendo:
+        - Quantidade do inventário
+        - Histórico de custo (reabrindo o registro anterior)
+
+        Restrições:
+        - Só permite excluir se for a ÚLTIMA entrada de compra do fornecedor para o produto
+        - Não permite se o estoque atual do inventário for menor que a quantidade da entrada
+        """
+        # Busca movimento
+        movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
+        if not movement:
+            raise HTTPException(status_code=404, detail="Movimento não encontrado")
+
+        if movement.movement_type != MovementType.SUPPLIER_PURCHASE.value:
+            raise HTTPException(status_code=400, detail="Somente entradas de fornecedor podem ser excluídas")
+
+        # Verifica se é a última SUPPLIER_PURCHASE para este produto
+        newer_count = (
+            db.query(StockMovement)
+            .filter(
+                StockMovement.product_id == movement.product_id,
+                StockMovement.movement_type == MovementType.SUPPLIER_PURCHASE.value,
+                StockMovement.created_at > movement.created_at,
+            )
+            .count()
+        )
+        if newer_count > 0:
+            raise HTTPException(status_code=400, detail="Apenas a última entrada de compra pode ser excluída")
+
+        # Verifica estoque do inventário
+        stock = db.query(InventoryStock).filter_by(product_id=movement.product_id).with_for_update().first()
+        current_qty = stock.quantity if stock else 0
+        if current_qty < movement.quantity:
+            raise HTTPException(status_code=400, detail="Estoque insuficiente para reverter esta entrada")
+
+        # Ajusta histórico de custo: remove o registro vigente e reabre o anterior
+        current_cost_record = (
+            db.query(ProductCostHistory)
+            .filter_by(product_id=movement.product_id, end_date=None)
+            .first()
+        )
+        if current_cost_record:
+            db.delete(current_cost_record)
+
+        previous_cost_record = (
+            db.query(ProductCostHistory)
+            .filter(ProductCostHistory.product_id == movement.product_id, ProductCostHistory.end_date.isnot(None))
+            .order_by(ProductCostHistory.start_date.desc())
+            .first()
+        )
+        if previous_cost_record:
+            previous_cost_record.end_date = None
+            db.add(previous_cost_record)
+
+        # Reverte estoque do inventário
+        if not stock:
+            # Deve existir, pois houve entrada, mas garantimos criação para consistência
+            stock = InventoryStock(product_id=movement.product_id, quantity=0)
+            db.add(stock)
+            db.flush()
+        stock.quantity = current_qty - movement.quantity
+        db.add(stock)
+
+        # Dados de resposta (antes de apagar)
+        supplier_name = movement.supplier.name if getattr(movement, "supplier", None) else None
+        resp = StockEntryRead(
+            id=movement.id,
+            product_id=movement.product_id,
+            quantity=movement.quantity,
+            unit_cost=float(movement.product_unit_cost) if movement.product_unit_cost is not None else None,
+            supplier_id=movement.supplier_id,
+            supplier_name=supplier_name,
+            created_at=movement.created_at,
+        )
+
+        # Exclui o movimento
+        db.delete(movement)
+
+        db.commit()
+        return resp
+
+    @staticmethod
+    def get_client_sales_history_service(
+        db: Session,
+        cost_center_id: int,
+        product_id: Optional[int] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> list[ClientSalesHistoryRead]:
+        q = db.query(ClientSalesHistory).filter(ClientSalesHistory.cost_center_id == cost_center_id)
+        if product_id is not None:
+            q = q.filter(ClientSalesHistory.product_id == product_id)
+        if start_date is not None:
+            q = q.filter(ClientSalesHistory.date >= start_date)
+        if end_date is not None:
+            q = q.filter(ClientSalesHistory.date <= end_date)
+        q = q.order_by(ClientSalesHistory.date.asc())
+        items = q.all()
+        return [ClientSalesHistoryRead.model_validate(i) for i in items]
+
+    @staticmethod
+    def get_client_loss_history_service(
+        db: Session,
+        cost_center_id: int,
+        product_id: Optional[int] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> list[ClientLossHistoryRead]:
+        q = db.query(ClientLossHistory).filter(ClientLossHistory.cost_center_id == cost_center_id)
+        if product_id is not None:
+            q = q.filter(ClientLossHistory.product_id == product_id)
+        if start_date is not None:
+            q = q.filter(ClientLossHistory.date >= start_date)
+        if end_date is not None:
+            q = q.filter(ClientLossHistory.date <= end_date)
+        q = q.order_by(ClientLossHistory.date.asc())
+        items = q.all()
+        return [ClientLossHistoryRead.model_validate(i) for i in items]

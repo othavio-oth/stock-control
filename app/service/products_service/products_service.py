@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from app.models.tickets import CostCenter
 from app.repository.products.products_repository import  create_product, get_all_products, search_products_by_term, update_product, delete_product, get_product_by_id
 from sqlalchemy.orm import Session
-from app.models.product import Product
+from app.models.product import Product, ProductCostHistory
 from app.models.stockMovement import StockMovement, MovementType
 class ProductService:
 
@@ -80,6 +80,33 @@ class ProductService:
             "total_pages": total_pages,
             "product": product_summary,
         }
+
+    @staticmethod
+    def get_product_cost_history_service(db: Session, product_id: int):
+        product = get_product_by_id(product_id, db)
+        if not product:
+            raise HTTPException(404, "Produto não encontrado.")
+
+        q = (
+            db.query(ProductCostHistory)
+            .filter(ProductCostHistory.product_id == product_id)
+            .order_by(ProductCostHistory.start_date.desc())
+        )
+        items = q.all()
+
+        # Converte para payload serializável (custo float)
+        result = []
+        for row in items:
+            result.append(
+                {
+                    "id": row.id,
+                    "product_id": row.product_id,
+                    "cost": float(row.cost),
+                    "start_date": row.start_date,
+                    "end_date": row.end_date,
+                }
+            )
+        return result
 
 
     

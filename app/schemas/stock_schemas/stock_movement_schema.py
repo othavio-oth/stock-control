@@ -71,3 +71,24 @@ class RegisterClientSalesDTO(BaseModel):
     product_id: int
     total_sold: int = Field(gt=0)           # > 0
     registration_date: date  
+
+
+class ClientSalesHistoryRead(BaseModel):
+    id: int
+    cost_center_id: int
+    product_id: int
+    date: date
+    sold_quantity: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClientLossHistoryRead(BaseModel):
+    id: int
+    cost_center_id: int
+    product_id: int
+    date: date
+    lost_quantity: int
+    reason: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

@@ -33,3 +33,36 @@ def register_client_sale_controller(db, sale_data):
 
 def get_product_entries_controller(db, product_id: int, page: int, page_size: int):
     return StockMovementService.get_product_entries_service(db, product_id, page, page_size)
+
+def delete_stock_entry_controller(db: Session, movement_id: int):
+    return StockMovementService.delete_supplier_purchase_entry_service(db, movement_id)
+
+def get_client_sales_history_controller(
+    db: Session,
+    cost_center_id: int,
+    product_id: int | None,
+    start_date,
+    end_date,
+):
+    return StockMovementService.get_client_sales_history_service(
+        db=db,
+        cost_center_id=cost_center_id,
+        product_id=product_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+def get_client_loss_history_controller(
+    db: Session,
+    cost_center_id: int,
+    product_id: int | None,
+    start_date,
+    end_date,
+):
+    return StockMovementService.get_client_loss_history_service(
+        db=db,
+        cost_center_id=cost_center_id,
+        product_id=product_id,
+        start_date=start_date,
+        end_date=end_date,
+    )

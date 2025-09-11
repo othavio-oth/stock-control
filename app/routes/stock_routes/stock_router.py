@@ -2,10 +2,27 @@ from datetime import datetime
 from typing import Any, Optional, Literal
 
 from fastapi import Query
-from app.controller.stock_controller.stock_movement_controller import  get_all_movements, get_current_stock, register_stock_loss_controller, register_client_sale_controller, get_product_entries_controller
+from app.controller.stock_controller.stock_movement_controller import  (
+    get_all_movements,
+    get_current_stock,
+    register_stock_loss_controller,
+    register_client_sale_controller,
+    get_product_entries_controller,
+    delete_stock_entry_controller,
+    get_client_sales_history_controller,
+    get_client_loss_history_controller,
+)
 from app.models.stockMovement import StockMovement
-from app.schemas.stock_schemas.stock_movement_schema import ClientStockResponse, InventoryResponse, StockMovementLost, StockMovementRead, SupplierPurchaseDTO, TotalProductStockResponse, RegisterClientSalesDTO
-from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead
+from app.schemas.stock_schemas.stock_movement_schema import (
+    ClientStockResponse,
+    InventoryResponse,
+    StockMovementLost,
+    StockMovementRead,
+    SupplierPurchaseDTO,
+    TotalProductStockResponse,
+    RegisterClientSalesDTO,
+)
+from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 router = APIRouter(redirect_slashes=False)
@@ -150,3 +167,57 @@ def create_sale_record(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e))
+
+
+@router.delete("/stock-movements/entries/{movement_id}/", include_in_schema=False)
+@router.delete(
+    "/stock-movements/entries/{movement_id}",
+    response_model=StockEntryRead,
+    tags=["Stock Movements"],
+    summary="Exclui uma entrada de estoque (compra do fornecedor)",
+)
+def delete_stock_entry(movement_id: int, db: Session = Depends(get_db)):
+    """Exclui a última entrada SUPPLIER_PURCHASE de um produto, revertendo estoque e custo atual.
+    Regras:
+    - Só permite exclusão se a entrada for a mais recente para o produto.
+    - Bloqueia se o estoque atual do inventário for insuficiente para reverter a entrada.
+    """
+    return delete_stock_entry_controller(db, movement_id)
+
+
+@router.get("/client-sales-history/", include_in_schema=False)
+@router.get(
+    "/client-sales-history",
+    response_model=List[ClientSalesHistoryRead],
+    tags=["Client Stock"],
+    summary="Histórico diário de vendas do cliente",
+)
+def get_client_sales_history(
+    cost_center_id: int = Query(..., description="ID do cost center"),
+    product_id: Optional[int] = Query(None, description="ID do produto"),
+    start_date: Optional[datetime] = Query(None, description="Data inicial (YYYY-MM-DD)"),
+    end_date: Optional[datetime] = Query(None, description="Data final (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+):
+    sd = start_date.date() if start_date else None
+    ed = end_date.date() if end_date else None
+    return get_client_sales_history_controller(db, cost_center_id, product_id, sd, ed)
+
+
+@router.get("/client-loss-history/", include_in_schema=False)
+@router.get(
+    "/client-loss-history",
+    response_model=List[ClientLossHistoryRead],
+    tags=["Client Stock"],
+    summary="Histórico diário de perdas do cliente",
+)
+def get_client_loss_history(
+    cost_center_id: int = Query(..., description="ID do cost center"),
+    product_id: Optional[int] = Query(None, description="ID do produto"),
+    start_date: Optional[datetime] = Query(None, description="Data inicial (YYYY-MM-DD)"),
+    end_date: Optional[datetime] = Query(None, description="Data final (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+):
+    sd = start_date.date() if start_date else None
+    ed = end_date.date() if end_date else None
+    return get_client_loss_history_controller(db, cost_center_id, product_id, sd, ed)
