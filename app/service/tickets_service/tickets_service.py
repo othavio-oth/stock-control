@@ -54,8 +54,36 @@ class TicketService:
 
     @staticmethod
     def edit_ticket(db, ticket_id, ticket_data):
-        if not get_ticket_by_id(db, ticket_id):
+        current = get_ticket_by_id(db, ticket_id)
+        if not current:
             raise ValueError("Ticket não encontrada.")
+        # Garantir unicidade do nome ao editar
+        try:
+            new_name = getattr(ticket_data, "name", None)
+        except Exception:
+            new_name = None
+        if new_name:
+            # Busca outros tickets com mesmo prefixo (inclui possíveis sufixos)
+            others = (
+                db.query(Ticket)
+                .filter(Ticket.id != ticket_id, Ticket.name.like(f"{new_name}%"))
+                .all()
+            )
+            if others:
+                max_num = 0
+                exact_collision = False
+                for t in others:
+                    if t.name == new_name:
+                        exact_collision = True
+                    if " - #" in t.name:
+                        try:
+                            num = int(t.name.split(" - #")[-1])
+                            max_num = max(max_num, num)
+                        except ValueError:
+                            pass
+                if exact_collision:
+                    # Aplica sufixo incremental como no create
+                    ticket_data.name = f"{new_name} - #{max_num + 1}"
         return update_ticket(db, ticket_id, ticket_data)
 
     @staticmethod

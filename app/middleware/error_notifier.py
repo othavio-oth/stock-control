@@ -56,6 +56,14 @@ class ErrorNotifierMiddleware(BaseHTTPMiddleware):
         try:
             response: Response = await call_next(request)
             if getattr(response, "status_code", 200) >= 500:
+                # Logar no console para facilitar debug local
+                logger.error(
+                    "5xx response: %s %s status=%s ua=%s",
+                    request.method,
+                    request.url.path,
+                    getattr(response, "status_code", 500),
+                    request.headers.get("user-agent", ""),
+                )
                 # Build diagnostic email for 5xx responses
                 subject = f"[Strategy Inventory] 5xx on {request.method} {request.url.path}"
                 body = (
@@ -71,6 +79,12 @@ class ErrorNotifierMiddleware(BaseHTTPMiddleware):
             return response
         except Exception:
             tb = traceback.format_exc()
+            # Também loga o stack trace no console
+            logger.exception(
+                "Unhandled exception on %s %s",
+                request.method,
+                request.url.path,
+            )
             subject = f"[Strategy Inventory] Unhandled exception on {request.method} {request.url.path}"
             body = (
                 f"Time: {started}Z\n"
@@ -83,4 +97,3 @@ class ErrorNotifierMiddleware(BaseHTTPMiddleware):
             )
             _send_error_email(subject, body)
             return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
-

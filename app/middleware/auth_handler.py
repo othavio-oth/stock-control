@@ -61,7 +61,8 @@ def login(data):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": str(user.id)}, expires_delta=access_token_expires)
+    # preferir ID numérico no token
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_token_expires)
     session.close()
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -81,8 +82,13 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_be
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id = payload.get("sub")
         if user_id is None:
+            raise credentials_exception
+        # garante que seja int (alguns tokens antigos podem ter 'sub' como string)
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
             raise credentials_exception
         # Aqui você pode buscar mais dados no banco se quiser
         return {"id": user_id}

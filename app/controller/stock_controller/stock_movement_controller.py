@@ -37,6 +37,12 @@ def get_product_entries_controller(db, product_id: int, page: int, page_size: in
 def delete_stock_entry_controller(db: Session, movement_id: int):
     return StockMovementService.delete_supplier_purchase_entry_service(db, movement_id)
 
+def update_stock_entry_controller(db: Session, movement_id: int, dto):
+    return StockMovementService.update_supplier_purchase_entry_service(db, movement_id, dto)
+
+def add_stock_bulk_controller(db: Session, bulk_dto):
+    return StockMovementService.add_stock_bulk_with_cost_average(db, bulk_dto)
+
 def get_client_sales_history_controller(
     db: Session,
     cost_center_id: int,

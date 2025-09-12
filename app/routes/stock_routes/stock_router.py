@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional, Literal
+from typing import Any, Optional, Literal, List
 
 from fastapi import Query
 from app.controller.stock_controller.stock_movement_controller import  (
@@ -9,6 +9,8 @@ from app.controller.stock_controller.stock_movement_controller import  (
     register_client_sale_controller,
     get_product_entries_controller,
     delete_stock_entry_controller,
+    update_stock_entry_controller,
+    add_stock_bulk_controller,
     get_client_sales_history_controller,
     get_client_loss_history_controller,
 )
@@ -23,6 +25,7 @@ from app.schemas.stock_schemas.stock_movement_schema import (
     RegisterClientSalesDTO,
 )
 from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead
+from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 router = APIRouter(redirect_slashes=False)
@@ -70,6 +73,16 @@ def get_total_in_system(db: Session = Depends(get_db)):
 @router.post("/add-stock", response_model=StockMovementRead, status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
 def add_stock( dto:SupplierPurchaseDTO, db: Session = Depends(get_db),):
     return StockMovementService.add_stock_with_cost_average(db, dto)
+
+@router.post("/add-stock/bulk/", include_in_schema=False)
+@router.post(
+    "/add-stock/bulk",
+    response_model=List[StockEntryReadWithCost],
+    status_code=status.HTTP_201_CREATED,
+    tags=["Stock Movements"],
+)
+def add_stock_bulk(dto: SupplierPurchaseBulkDTO, db: Session = Depends(get_db)):
+    return add_stock_bulk_controller(db, dto)
 
 @router.get(
     "/client-stock/",
@@ -183,6 +196,22 @@ def delete_stock_entry(movement_id: int, db: Session = Depends(get_db)):
     - Bloqueia se o estoque atual do inventário for insuficiente para reverter a entrada.
     """
     return delete_stock_entry_controller(db, movement_id)
+
+@router.patch("/stock-movements/entries/{movement_id}/", include_in_schema=False)
+@router.patch(
+    "/stock-movements/entries/{movement_id}",
+    response_model=StockEntryReadWithCost,
+    tags=["Stock Movements"],
+    summary="Edita a última entrada de estoque (compra do fornecedor) e retorna o custo médio recalculado",
+)
+def update_stock_entry(movement_id: int, body: SupplierPurchaseUpdateDTO, db: Session = Depends(get_db)):
+    """Edita a última entrada SUPPLIER_PURCHASE de um produto, ajustando estoque pelo delta
+    e recalculando o custo médio vigente. Retorna a entrada atualizada e o custo médio atual.
+    """
+    try:
+        return update_stock_entry_controller(db, movement_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/client-sales-history/", include_in_schema=False)

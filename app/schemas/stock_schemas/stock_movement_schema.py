@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Dict, Literal, Optional
+from typing import Dict, Literal, Optional, List
 from datetime import date, datetime
 
 from app.models.stockMovement import MovementType
@@ -46,6 +46,24 @@ class StockEntryRead(BaseModel):
     supplier_id: Optional[int] = None
     supplier_name: Optional[str] = None
     created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SupplierPurchaseUpdateDTO(BaseModel):
+    quantity: Optional[int] = None
+    unit_cost: Optional[float] = None
+    supplier_id: Optional[int] = None
+
+    def ensure_not_empty(self):
+        if self.quantity is None and self.unit_cost is None and self.supplier_id is None:
+            raise ValueError("Nenhum campo para atualizar.")
+
+class StockEntryReadWithCost(StockEntryRead):
+    current_avg_cost: Optional[float] = None
+
+
+class SupplierPurchaseBulkDTO(BaseModel):
+    items: List[SupplierPurchaseDTO]
 
     model_config = ConfigDict(from_attributes=True)
 
