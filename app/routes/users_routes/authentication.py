@@ -11,14 +11,17 @@ router = APIRouter(redirect_slashes=False)
 
 
 class LoginRequest(BaseModel):
-    username: str
+    identifier: str  # username ou email
     password: str
 
 @router.post("/login/", include_in_schema=False)
 @router.post("/login", tags=["Authentication"])
 async def login_route(payload: LoginRequest):
     # Accept only JSON (username/password)
-    return login({"username": payload.username, "password": payload.password})
+    return login({
+        "identifier": payload.identifier,
+        "password": payload.password,
+    })
 
 @router.get("/validate-token/", include_in_schema=False)
 @router.get("/validate-token", tags=["Authentication"])
