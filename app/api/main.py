@@ -3,7 +3,9 @@ from app.routes.users_routes import seller, user, authentication, permissions, r
 from app.routes.tickets_routes import cost_center, tickets_routes
 from app.routes.stock_routes import sales_route, stock_router
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException, Response
+from fastapi import FastAPI, Depends, HTTPException, Response, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from app.middleware.permission import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
 from app.middleware.error_notifier import ErrorNotifierMiddleware
@@ -127,6 +129,93 @@ if os.getenv("ENABLE_DEBUG_ROUTES", "false").lower() == "true":
 class GenericalError(HTTPException):
     def __init__(self, detail="Erro interno do servidor"):
         super().__init__(status_code=500, detail=detail)
+
+
+# \-\-\-\- Padronização de erros (payload unificado) \-\-\-\-
+def _build_error_payload(
+    *,
+    request: Request,
+    status_code: int,
+    message: str,
+    code: str,
+    details: dict | list | None = None,
+):
+    req_id = request.headers.get("x-request-id")
+    return {
+        "status": "error",
+        "error": {
+            "code": code,
+            "message": message,
+            "details": details,
+            "status_code": status_code,
+        },
+        "meta": {
+            "path": str(request.url.path),
+            "method": request.method,
+            "request_id": req_id,
+        },
+    }
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    payload = _build_error_payload(
+        request=request,
+        status_code=422,
+        message="Erro de validação do payload",
+        code="validation_error",
+        details=exc.errors(),
+    )
+    return JSONResponse(status_code=422, content=payload)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    # Se detail já vier como dict com 'code' e 'message', preserva
+    if isinstance(exc.detail, dict):
+        code = exc.detail.get("code") or (
+            "not_found" if exc.status_code == 404 else
+            "unauthorized" if exc.status_code == 401 else
+            "forbidden" if exc.status_code == 403 else
+            "bad_request" if exc.status_code == 400 else
+            "http_error"
+        )
+        message = exc.detail.get("message") or exc.detail.get("detail") or str(exc.detail)
+        details = exc.detail.get("details")
+    else:
+        # detail é string
+        message = str(exc.detail) if exc.detail else (
+            "Recurso não encontrado" if exc.status_code == 404 else
+            "Requisição inválida"
+        )
+        code = (
+            "not_found" if exc.status_code == 404 else
+            "bad_request" if exc.status_code == 400 else
+            "http_error"
+        )
+        details = None
+
+    payload = _build_error_payload(
+        request=request,
+        status_code=exc.status_code,
+        message=message,
+        code=code,
+        details=details,
+    )
+    return JSONResponse(status_code=exc.status_code, content=payload)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Evita vazar mensagens internas; log detalhado vai pelo ErrorNotifierMiddleware
+    payload = _build_error_payload(
+        request=request,
+        status_code=500,
+        message="Erro interno do servidor",
+        code="internal_error",
+        details=None,
+    )
+    return JSONResponse(status_code=500, content=payload)
 
 if __name__ == "__main__":
   uvicorn.run("app.api.main:app", host="0.0.0.0", port=8000, reload=True, access_log=True, timeout_keep_alive=600)

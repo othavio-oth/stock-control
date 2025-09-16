@@ -15,6 +15,7 @@ from app.models.product import Product
 
 from sqlalchemy.orm import Session
 from datetime import date
+from app.models.tickets import CostCenter
 
 
 BUSINESS_START = 7   # 07:00
@@ -365,3 +366,130 @@ def get_client_stock_qty(db: Session, cost_center_id: int, product_id: int) -> i
         .first()
     )
     return row[0] if row else 0
+
+
+def get_sales_quantity(
+    db: Session,
+    *,
+    product_id: int,
+    start_date: date,
+    end_date: date,
+    cost_center_id: int | None = None,
+    retail_chain_id: int | None = None,
+) -> int:
+    """
+    Soma a quantidade de vendas (ClientSalesHistory.sold_quantity) para um produto
+    no período informado. Permite filtrar por cost_center ou por retail_chain.
+
+    - Se `cost_center_id` for informado, filtra apenas por ele.
+    - Caso contrário, se `retail_chain_id` for informado, soma todas as vendas
+      dos cost centers associados à cadeia.
+    - Se nenhum for informado, soma em todos os cost centers.
+    """
+    q = (
+        db.query(func.coalesce(func.sum(ClientSalesHistory.sold_quantity), 0))
+        .filter(
+            ClientSalesHistory.product_id == product_id,
+            ClientSalesHistory.date >= start_date,
+            ClientSalesHistory.date <= end_date,
+        )
+    )
+
+    if cost_center_id is not None:
+        q = q.filter(ClientSalesHistory.cost_center_id == cost_center_id)
+    elif retail_chain_id is not None:
+        # Junta com CostCenter para filtrar pela retail chain
+        q = (
+            q.join(CostCenter, CostCenter.id == ClientSalesHistory.cost_center_id)
+             .filter(CostCenter.retail_chain_id == retail_chain_id)
+        )
+
+    total = q.first()[0]
+    return int(total or 0)
+
+
+def update_client_sales_for_day(
+    db: Session,
+    *,
+    cost_center_id: int,
+    product_id: int,
+    d: date,
+    new_total_sold: int,
+) -> int:
+    """
+    Atualiza a quantidade vendida de um produto em um cost center para um dia específico.
+    Ajusta o estoque do cliente pela diferença (delta) e persiste em ClientSalesHistory.
+
+    Regras:
+    - new_total_sold >= 0
+    - delta = new_total_sold - old_total
+      - delta > 0: debita estoque do cliente em 'delta' (não permite negativo)
+      - delta < 0: credita estoque do cliente em '-delta'
+    - Mantém (se existir) um movimento CLIENT_SALE criado ao meio-dia para o dia (apenas atualiza a quantity);
+      não cria novos movimentos para não reprocessar estoque.
+    """
+    if new_total_sold < 0:
+        raise ValueError("total_sold deve ser >= 0")
+
+    # Lock no estoque do cliente
+    cs = get_or_create_client_stock_for_update(db, cost_center_id=cost_center_id, product_id=product_id)
+
+    # Vendas existentes no dia
+    sales = (
+        db.query(ClientSalesHistory)
+        .filter_by(cost_center_id=cost_center_id, product_id=product_id, date=d)
+        .first()
+    )
+    old_total = int(sales.sold_quantity) if sales else 0
+    delta = int(new_total_sold) - old_total
+
+    # Ajuste de estoque do cliente conforme delta
+    if delta > 0:
+        # precisa debitar mais estoque
+        if cs.quantity < delta:
+            raise ValueError(
+                f"Estoque insuficiente para aumentar vendas. Em estoque: {cs.quantity}, necessário: {delta}"
+            )
+        cs.quantity -= delta
+    elif delta < 0:
+        # devolve para o estoque
+        cs.quantity += (-delta)
+    # if delta == 0, nada muda no estoque
+    db.add(cs)
+
+    # Atualiza histórico diário
+    if sales:
+        if new_total_sold == 0:
+            db.delete(sales)
+        else:
+            sales.sold_quantity = new_total_sold
+            db.add(sales)
+    else:
+        if new_total_sold > 0:
+            sales = ClientSalesHistory(
+                product_id=product_id,
+                cost_center_id=cost_center_id,
+                date=d,
+                sold_quantity=new_total_sold,
+            )
+            db.add(sales)
+
+    # Opcional: atualizar o movimento padrão de meio-dia se existir
+    # Apenas sincroniza a quantidade; não cria nem reprocessa estoque
+    mv = (
+        db.query(StockMovement)
+        .filter(
+            StockMovement.product_id == product_id,
+            StockMovement.cost_center_id == cost_center_id,
+            StockMovement.movement_type == MovementType.CLIENT_SALE,
+            func.date(StockMovement.created_at) == d,
+            extract('hour', StockMovement.created_at) == 12,
+        )
+        .first()
+    )
+    if mv:
+        mv.quantity = new_total_sold
+        db.add(mv)
+
+    db.commit()
+    return int(new_total_sold)

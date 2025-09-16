@@ -8,12 +8,12 @@ from app.models.tickets import Ticket, TicketProduct
 from app.models.stockMovement import ClientStock, ClientLossHistory, ClientSalesHistory
 from app.repository.tickets.tickets_repository import get_ticket_by_id
 
-BUSINESS_START = time(7, 0)   # 07:00
-BUSINESS_END   = time(20, 0)  # 20:00
-BUSINESS_HOURS_PER_DAY = (datetime.combine(date.today(), BUSINESS_END) - datetime.combine(date.today(), BUSINESS_START)).seconds / 3600.0  # 13.0
+BUSINESS_START = time(0, 0)    # 00:00
+BUSINESS_END   = time(23, 59, 59)  # 23:59:59 (cobre o dia inteiro)
+BUSINESS_HOURS_PER_DAY = 24.0
 
 def _clip_to_business_window(dt: datetime) -> Optional[datetime]:
-    """Recorta um datetime para dentro do horário comercial (07:00–20:00).
+    """Recorta um datetime para dentro do dia (00:00–23:59).
     Se estiver fora, traz para a borda mais próxima dentro do mesmo dia."""
     day_start = datetime.combine(dt.date(), BUSINESS_START)
     day_end   = datetime.combine(dt.date(), BUSINESS_END)
@@ -24,7 +24,7 @@ def _clip_to_business_window(dt: datetime) -> Optional[datetime]:
     return dt
 
 def _business_hours_between(start: datetime, end: datetime) -> float:
-    """Horas úteis (07–20) entre start e end, somando dia a dia."""
+    """Horas entre start e end, somando dia a dia (janela diária completa)."""
     if end <= start:
         return 0.0
 
@@ -157,7 +157,7 @@ def get_daily_sales_avg_for_ticket(
         # 2) início do período: 07:00 do dia seguinte ao order_date do último ticket
         start_dt = datetime.combine(last_ticket.order_date + timedelta(days=1), BUSINESS_START)
 
-        # 3) fim do período = evaluation_time (já recortado para horário comercial)
+    # 3) fim do período = evaluation_time (recortado para janela diária)
         if not evaluation_time or evaluation_time <= start_dt:
             results.append({
                 "product_id": product_id,
@@ -205,6 +205,9 @@ def get_daily_sales_avg_for_ticket(
                 avg_per_day = sold_qty / days
                 avg_per_hour = avg_per_day / BUSINESS_HOURS_PER_DAY if BUSINESS_HOURS_PER_DAY > 0 else 0.0
 
+        # Horas de período (para referência)
+        period_hours = _business_hours_between(start_dt, evaluation_time)
+
         results.append({
             "product_id": product_id,
             "last_ticket_id": last_ticket.id,
@@ -249,7 +252,7 @@ def get_daily_sales_avg_for_last_cycles(
     """
     Para cada produto do ticket, retorna uma LISTA com as métricas para os últimos 'max_cycles'
     tickets aprovados que continham esse produto (ou menos, se não houver tantos).
-    O fim do período é o evaluation_time (ou agora) recortado para a janela 07–20.
+    O fim do período é o evaluation_time (ou agora) recortado para a janela diária (00–23:59).
     Retorna: { product_id: [ { ...ciclo mais recente... }, { ...ciclo-2... }, ... ] }
     """
     ticket = get_ticket_by_id(db, ticket_id)
@@ -276,7 +279,7 @@ def get_daily_sales_avg_for_last_cycles(
         cycles: List[Dict] = []
         # prev_tickets em ordem decrescente (mais recente primeiro)
         for i, prev in enumerate(prev_tickets):
-            # início do ciclo = 07:00 do dia seguinte ao order_date do ticket anterior
+            # início do ciclo = 00:00 do dia seguinte ao order_date do ticket anterior
             start_dt = datetime.combine(prev.order_date + timedelta(days=1), BUSINESS_START)
 
             # limite superior do ciclo: início do próximo ticket aprovado (ou do ticket atual)
@@ -321,6 +324,8 @@ def get_daily_sales_avg_for_last_cycles(
             else:
                 avg_per_day = sold_qty / days
                 avg_per_hour = avg_per_day / BUSINESS_HOURS_PER_DAY if BUSINESS_HOURS_PER_DAY > 0 else 0.0
+
+            period_hours = _business_hours_between(start_dt, end_dt)
 
             cycles.append({
                 "ticket_id": prev.id,

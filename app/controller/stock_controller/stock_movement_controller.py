@@ -72,3 +72,41 @@ def get_client_loss_history_controller(
         start_date=start_date,
         end_date=end_date,
     )
+
+
+def get_sales_quantity_controller(
+    db: Session,
+    *,
+    product_id: int,
+    start_date,
+    end_date,
+    cost_center_id: int | None = None,
+    retail_chain_id: int | None = None,
+):
+    total = StockMovementService.get_sales_quantity_service(
+        db=db,
+        product_id=product_id,
+        start_date=start_date,
+        end_date=end_date,
+        cost_center_id=cost_center_id,
+        retail_chain_id=retail_chain_id,
+    )
+    return total
+
+
+def update_client_sale_for_day_controller(
+    db: Session,
+    *,
+    cost_center_id: int,
+    product_id: int,
+    d,
+    new_total_sold: int,
+):
+    total = StockMovementService.update_client_sale_for_day_service(
+        db=db,
+        cost_center_id=cost_center_id,
+        product_id=product_id,
+        d=d,
+        new_total_sold=new_total_sold,
+    )
+    return total

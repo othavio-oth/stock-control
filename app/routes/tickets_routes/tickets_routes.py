@@ -130,8 +130,8 @@ def average_daily_sales_endpoint(
     db: Session = Depends(get_db),
 ):
     """
-    Retorna, para cada produto do ticket, a média de vendas por hora e por dia comercial (07–20),
-    calculada do dia seguinte (07:00) ao último ticket aprovado que continha o produto até
+    Retorna, para cada produto do ticket, a média de vendas por hora e por dia (24h),
+    calculada do dia seguinte (00:00) ao último ticket aprovado que continha o produto até
     `evaluation_time` (ou agora, se omitido).
     """
     try:

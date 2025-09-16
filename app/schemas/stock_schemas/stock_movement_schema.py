@@ -110,3 +110,26 @@ class ClientLossHistoryRead(BaseModel):
     reason: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SalesQuantityResponse(BaseModel):
+    product_id: int
+    start_date: date
+    end_date: date
+    total_sold: int
+    cost_center_id: Optional[int] = None
+    retail_chain_id: Optional[int] = None
+
+
+class ClientSalesUpdateDTO(BaseModel):
+    cost_center_id: int
+    product_id: int
+    date: date
+    total_sold: int = Field(ge=0)
+
+
+class ClientSalesUpdateResult(BaseModel):
+    cost_center_id: int
+    product_id: int
+    date: date
+    total_sold: int

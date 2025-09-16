@@ -13,6 +13,8 @@ from app.controller.stock_controller.stock_movement_controller import  (
     add_stock_bulk_controller,
     get_client_sales_history_controller,
     get_client_loss_history_controller,
+    get_sales_quantity_controller,
+    update_client_sale_for_day_controller,
 )
 from app.models.stockMovement import StockMovement
 from app.schemas.stock_schemas.stock_movement_schema import (
@@ -25,6 +27,8 @@ from app.schemas.stock_schemas.stock_movement_schema import (
     RegisterClientSalesDTO,
 )
 from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead
+from app.schemas.stock_schemas.stock_movement_schema import SalesQuantityResponse
+from app.schemas.stock_schemas.stock_movement_schema import ClientSalesUpdateDTO, ClientSalesUpdateResult
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
@@ -250,3 +254,66 @@ def get_client_loss_history(
     sd = start_date.date() if start_date else None
     ed = end_date.date() if end_date else None
     return get_client_loss_history_controller(db, cost_center_id, product_id, sd, ed)
+
+
+@router.get("/sales/quantity/", include_in_schema=False)
+@router.get(
+    "/sales/quantity",
+    response_model=SalesQuantityResponse,
+    tags=["Sales"],
+    summary="Total de vendas por período",
+)
+def get_sales_quantity(
+    product_id: int = Query(..., description="ID do produto"),
+    start_date: datetime = Query(..., description="Data inicial (YYYY-MM-DD)"),
+    end_date: datetime = Query(..., description="Data final (YYYY-MM-DD)"),
+    cost_center_id: Optional[int] = Query(None, description="ID do cost center (opcional)"),
+    retail_chain_id: Optional[int] = Query(None, description="ID da retail chain (opcional)"),
+    db: Session = Depends(get_db),
+):
+    if end_date < start_date:
+        raise HTTPException(status_code=400, detail="end_date deve ser >= start_date")
+    sd = start_date.date()
+    ed = end_date.date()
+    total = get_sales_quantity_controller(
+        db,
+        product_id=product_id,
+        start_date=sd,
+        end_date=ed,
+        cost_center_id=cost_center_id,
+        retail_chain_id=retail_chain_id,
+    )
+    return SalesQuantityResponse(
+        product_id=product_id,
+        start_date=sd,
+        end_date=ed,
+        total_sold=total,
+        cost_center_id=cost_center_id,
+        retail_chain_id=retail_chain_id,
+    )
+
+
+@router.patch("/stock-movements/sales/", include_in_schema=False)
+@router.patch(
+    "/stock-movements/sales",
+    response_model=ClientSalesUpdateResult,
+    tags=["Sales"],
+    summary="Editar vendas do cliente por dia",
+)
+def update_client_sale_for_day(body: ClientSalesUpdateDTO, db: Session = Depends(get_db)):
+    try:
+        total = update_client_sale_for_day_controller(
+            db,
+            cost_center_id=body.cost_center_id,
+            product_id=body.product_id,
+            d=body.date,
+            new_total_sold=body.total_sold,
+        )
+        return ClientSalesUpdateResult(
+            cost_center_id=body.cost_center_id,
+            product_id=body.product_id,
+            date=body.date,
+            total_sold=total,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
