@@ -106,6 +106,16 @@ class StockMovementService:
 
 
     @staticmethod
+    def reset_inventory_stock_service(db: Session) -> int:
+        try:
+            updated_rows = db.query(InventoryStock).update({InventoryStock.quantity: 0}, synchronize_session=False)
+            db.commit()
+            return int(updated_rows or 0)
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Erro ao zerar estoque do inventario: {exc}")
+
+    @staticmethod
     def get_client_stock_service(
         db: Session,
         cost_center_id: int,

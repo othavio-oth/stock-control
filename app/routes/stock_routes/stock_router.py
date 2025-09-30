@@ -5,6 +5,7 @@ from fastapi import Query
 from app.controller.stock_controller.stock_movement_controller import  (
     get_all_movements,
     get_current_stock,
+    reset_inventory_stock_controller,
     register_stock_loss_controller,
     register_client_sale_controller,
     get_product_entries_controller,
@@ -70,6 +71,13 @@ def get_product_entries(
 @router.get("/stock-movements/current-stock", response_model=List[InventoryResponse], tags=["Stock Movements"])
 def get_total_in_system(db: Session = Depends(get_db)):
     return get_current_stock(db)
+
+
+@router.post("/stock-movements/reset-inventory/", include_in_schema=False)
+@router.post("/stock-movements/reset-inventory", tags=["Stock Movements"])
+def reset_inventory_stock(db: Session = Depends(get_db)):
+    reset_count = reset_inventory_stock_controller(db)
+    return {"reset_count": reset_count}
 
 
 

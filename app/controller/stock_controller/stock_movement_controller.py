@@ -7,6 +7,9 @@ def get_all_movements(db, movement_type: str | None = None, product_id: int | No
 def get_current_stock(db):
     return StockMovementService.get_current_stock_service(db)
 
+def reset_inventory_stock_controller(db):
+    return StockMovementService.reset_inventory_stock_service(db)
+
 # def get_total_in_system_by_product(db, product_id):
 #     return StockMovementService.get_total_in_system_by_product_service(db, product_id)
 
