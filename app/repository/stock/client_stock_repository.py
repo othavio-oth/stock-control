@@ -2,6 +2,7 @@ from typing import Iterable, List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import case, func
 from app.models.stockMovement import ClientStock
+from sqlalchemy.exc import IntegrityError
 
 
 from typing import Any, Dict, Iterable, List, Optional
@@ -39,3 +40,51 @@ def get_client_stock_by_cost_center(
                 result.append({"product_id": pid, "quantity": 0})
 
     return result
+
+
+
+def update_client_stock_quantity(
+    db: Session,
+    cost_center_id: int,
+    product_id: int,
+    quantity: int,
+    upsert: bool = True,
+) -> dict:
+    """
+    Atualiza a quantidade de um único produto na client_stock.
+    Se upsert=True, cria a linha se não existir.
+    Retorna {"product_id": int, "quantity": int}.
+    """
+    if quantity < 0:
+        raise ValueError("quantity não pode ser negativo")
+
+    row = (
+        db.query(ClientStock)
+        .filter(
+            ClientStock.cost_center_id == cost_center_id,
+            ClientStock.product_id == product_id,
+        )
+        .with_for_update(of=ClientStock)  # evita race em concorrência
+        .one_or_none()
+    )
+
+    if row is None:
+        if not upsert:
+            # nada a fazer; você pode lançar erro ou só retornar zero/plain
+            return {"product_id": product_id, "quantity": 0}
+        row = ClientStock(
+            cost_center_id=cost_center_id,
+            product_id=product_id,
+            quantity=quantity,
+        )
+        db.add(row)
+    else:
+        row.quantity = quantity
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
+
+    return {"product_id": product_id, "quantity": row.quantity}

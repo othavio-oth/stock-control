@@ -100,38 +100,7 @@ def add_stock_bulk(dto: SupplierPurchaseBulkDTO, db: Session = Depends(get_db)):
     "/client-stock/",
     include_in_schema=False,
 )
-@router.get(
-    "/client-stock",
-    response_model=List[ClientStockResponse],
-    summary="Estoque do cliente por produto",
-    description="Retorna o estoque atual do cliente (por produto). "
-                "Parâmetros opcionais: product_ids CSV e include_zero.",
-    tags=["Client Stock"],
-)
-def get_client_stock(
-    cost_center_id: int = Query(..., description="ID do cost center"),
-    product_ids: Optional[str] = Query(
-        None, description="CSV de product_ids para filtrar (ex: 1,2,3)"
-    ),
-    include_zero: bool = Query(
-        False, description="Se true, retorna 0 para ids solicitados e não encontrados"
-    ),
-    db: Session = Depends(get_db),
-):
-    ids_list: Optional[List[int]] = None
-    if product_ids:
-        try:
-            ids_list = [int(x) for x in product_ids.split(",") if x.strip()]
-        except ValueError:
-            raise HTTPException(status_code=400, detail="product_ids inválido")
 
-    data = StockMovementService.get_client_stock_service(
-        db=db,
-        cost_center_id=cost_center_id,
-        product_ids=ids_list,
-        include_zero=include_zero,
-    )
-    return data
 # @router.get("/stock-movements/monthly-sales-losses", 
 #            response_model=List[Dict[str, Any]], 
 #            tags=["Stock Movements"])

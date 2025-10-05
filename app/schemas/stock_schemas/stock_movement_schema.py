@@ -78,6 +78,13 @@ class InventoryResponse(StockMovementBase):
 class TotalProductStockResponse(StockTotal):
     pass
     
+
+class ClientStockUpdateRequest(BaseModel):
+    cost_center_id: int = Field(..., gt=0)
+    product_id: int = Field(..., gt=0)
+    quantity: int = Field(..., ge=0)
+    upsert: bool = True  # opcional; default True
+    
 class ClientStockResponse(BaseModel):
     product_id: int
     quantity: int

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.product import ProductCostHistory
 from app.models.stockMovement import MovementType, StockMovement, InventoryStock, ClientSalesHistory, ClientLossHistory
-from app.repository.stock.client_stock_repository import get_client_stock_by_cost_center
+from app.repository.stock.client_stock_repository import get_client_stock_by_cost_center, update_client_stock_quantity
 from app.repository.stock.stock_movement_repository import get_all_stock_movements, get_current_stock, get_product_entries
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementLost, RegisterClientSalesDTO, StockMovementRead
 from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead
@@ -127,6 +127,22 @@ class StockMovementService:
             cost_center_id=cost_center_id,
             product_ids=product_ids,
             include_zero=include_zero,
+        )
+        
+    @staticmethod
+    def update_client_stock_quantity_service(
+        db: Session,
+        cost_center_id: int,
+        product_id: int,
+        quantity: int,
+        upsert: bool = True,
+    ) -> dict:
+        return update_client_stock_quantity(
+            db=db,
+            cost_center_id=cost_center_id,
+            product_id=product_id,
+            quantity=quantity,
+            upsert=upsert,
         )
 
     @staticmethod
