@@ -33,7 +33,6 @@ jobs:
           docker push "$IMAGE_LATEST"
           docker push "$IMAGE_SHA"
 
-
       - name: Upload compose file to VM (PROD)
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -54,6 +53,7 @@ jobs:
             set -euo pipefail
             cd ${{ secrets.DEPLOY_PATH }}
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -p strategy-prod down || true
             docker compose -p strategy-prod pull
-            docker compose -p strategy-prod up -d --pull always --force-recreate
+            docker compose -p strategy-prod up -d --build --force-recreate
             docker compose -p strategy-prod ps
