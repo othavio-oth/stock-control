@@ -1,7 +1,6 @@
 services:
   strategy_db_inventory:
     image: postgres:15
-    container_name: strategy_db_inventory
     restart: unless-stopped
     env_file: [.env]
     environment:
@@ -20,7 +19,6 @@ services:
 
   strategy_backend_inventory:
     image: ghcr.io/othavio-oth/strategy:latest
-    container_name: strategy_backend_inventory
     restart: unless-stopped
     env_file: [.env]
     ports:
