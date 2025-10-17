@@ -14,6 +14,7 @@ from app.controller.stock_controller.stock_movement_controller import  (
     add_stock_bulk_controller,
     get_client_sales_history_controller,
     get_client_loss_history_controller,
+    get_client_sales_and_loss_history_controller,
     get_sales_quantity_controller,
     update_client_sale_for_day_controller,
 )
@@ -27,7 +28,7 @@ from app.schemas.stock_schemas.stock_movement_schema import (
     TotalProductStockResponse,
     RegisterClientSalesDTO,
 )
-from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead
+from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead, ClientSalesLossHistoryRead
 from app.schemas.stock_schemas.stock_movement_schema import SalesQuantityResponse
 from app.schemas.stock_schemas.stock_movement_schema import ClientSalesUpdateDTO, ClientSalesUpdateResult
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
@@ -231,6 +232,25 @@ def get_client_loss_history(
     sd = start_date.date() if start_date else None
     ed = end_date.date() if end_date else None
     return get_client_loss_history_controller(db, cost_center_id, product_id, sd, ed)
+
+
+@router.get("/client-sales-loss-history/", include_in_schema=False)
+@router.get(
+    "/client-sales-loss-history",
+    response_model=List[ClientSalesLossHistoryRead],
+    tags=["Client Stock"],
+    summary="Histórico diário combinado de vendas e perdas do cliente",
+)
+def get_client_sales_and_loss_history(
+    cost_center_id: int = Query(..., description="ID do cost center"),
+    product_id: Optional[int] = Query(None, description="ID do produto"),
+    start_date: Optional[datetime] = Query(None, description="Data inicial (YYYY-MM-DD)"),
+    end_date: Optional[datetime] = Query(None, description="Data final (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+):
+    sd = start_date.date() if start_date else None
+    ed = end_date.date() if end_date else None
+    return get_client_sales_and_loss_history_controller(db, cost_center_id, product_id, sd, ed)
 
 
 @router.get("/sales/quantity/", include_in_schema=False)

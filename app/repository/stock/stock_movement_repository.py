@@ -138,6 +138,149 @@ def process_stock_movement(db: Session, movement: StockMovement):
 
     db.commit()
 
+
+def get_client_loss_history(
+    db: Session,
+    *,
+    cost_center_id: int,
+    product_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> List[ClientLossHistory]:
+    """
+    Retorna o histórico de perdas para um cost center, com filtros opcionais.
+    """
+    q = db.query(ClientLossHistory).filter(ClientLossHistory.cost_center_id == cost_center_id)
+
+    if product_id is not None:
+        q = q.filter(ClientLossHistory.product_id == product_id)
+    if start_date is not None:
+        q = q.filter(ClientLossHistory.date >= start_date)
+    if end_date is not None:
+        q = q.filter(ClientLossHistory.date <= end_date)
+
+    return q.order_by(ClientLossHistory.date.asc()).all()
+
+
+def get_client_sales_and_loss_history(
+    db: Session,
+    *,
+    cost_center_id: int,
+    product_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Consolida vendas e perdas para um mesmo cost center, agrupadas por dia e produto.
+    """
+    sales_filters = [ClientSalesHistory.cost_center_id == cost_center_id]
+    loss_filters = [ClientLossHistory.cost_center_id == cost_center_id]
+
+    if product_id is not None:
+        sales_filters.append(ClientSalesHistory.product_id == product_id)
+        loss_filters.append(ClientLossHistory.product_id == product_id)
+    if start_date is not None:
+        sales_filters.append(ClientSalesHistory.date >= start_date)
+        loss_filters.append(ClientLossHistory.date >= start_date)
+    if end_date is not None:
+        sales_filters.append(ClientSalesHistory.date <= end_date)
+        loss_filters.append(ClientLossHistory.date <= end_date)
+
+    sales_rows = (
+        db.query(ClientSalesHistory)
+        .filter(*sales_filters)
+        .order_by(ClientSalesHistory.date.asc())
+        .all()
+    )
+    loss_rows = (
+        db.query(ClientLossHistory)
+        .filter(*loss_filters)
+        .order_by(ClientLossHistory.date.asc())
+        .all()
+    )
+
+    combined: Dict[tuple[int, date], Dict[str, Any]] = {}
+
+    for row in sales_rows:
+        key = (row.product_id, row.date)
+        if key not in combined:
+            combined[key] = {
+                "cost_center_id": row.cost_center_id,
+                "product_id": row.product_id,
+                "date": row.date,
+                "sold_quantity": 0,
+                "lost_quantity": 0,
+                "previous_ticket_id": None,
+                "previous_ticket_order_date": None,
+                "previous_ticket_name": None,
+                "previous_ticket_quantity": None,
+            }
+        combined[key]["sold_quantity"] += int(row.sold_quantity or 0)
+
+    for row in loss_rows:
+        key = (row.product_id, row.date)
+        if key not in combined:
+            combined[key] = {
+                "cost_center_id": row.cost_center_id,
+                "product_id": row.product_id,
+                "date": row.date,
+                "sold_quantity": 0,
+                "lost_quantity": 0,
+                "previous_ticket_id": None,
+                "previous_ticket_order_date": None,
+                "previous_ticket_name": None,
+                "previous_ticket_quantity": None,
+            }
+        combined[key]["lost_quantity"] += int(row.lost_quantity or 0)
+
+    if not combined:
+        return []
+
+    dates_by_product: Dict[int, List[date]] = defaultdict(list)
+    for (product_id, day), _ in combined.items():
+        dates_by_product[product_id].append(day)
+
+    for product, days in dates_by_product.items():
+        sorted_days = sorted(set(days))
+        max_day = sorted_days[-1]
+        ticket_rows = (
+            db.query(
+                Ticket.id.label("ticket_id"),
+                Ticket.name.label("ticket_name"),
+                Ticket.order_date.label("order_date"),
+                TicketProduct.quantity_ordered.label("quantity_ordered"),
+            )
+            .join(TicketProduct, TicketProduct.ticket_id == Ticket.id)
+            .filter(
+                Ticket.cost_center_id == cost_center_id,
+                TicketProduct.product_id == product,
+                Ticket.status == "approved",
+                Ticket.order_date < max_day,
+            )
+            .order_by(Ticket.order_date.asc(), Ticket.id.asc())
+            .all()
+        )
+        if not ticket_rows:
+            continue
+        idx = 0
+        last_ticket = None
+        ticket_count = len(ticket_rows)
+        for day in sorted_days:
+            while idx < ticket_count and ticket_rows[idx].order_date < day:
+                last_ticket = ticket_rows[idx]
+                idx += 1
+            if last_ticket and last_ticket.order_date < day:
+                key = (product, day)
+                combined[key]["previous_ticket_id"] = last_ticket.ticket_id
+                combined[key]["previous_ticket_order_date"] = last_ticket.order_date
+                combined[key]["previous_ticket_name"] = last_ticket.ticket_name
+                combined[key]["previous_ticket_quantity"] = (
+                    int(last_ticket.quantity_ordered) if last_ticket.quantity_ordered is not None else None
+                )
+
+    return sorted(combined.values(), key=lambda item: (item["product_id"], item["date"]))
+
+
 def get_all_stock_movements(
     db: Session,
     movement_type: Optional[str] = None,

@@ -4,11 +4,22 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.product import ProductCostHistory
-from app.models.stockMovement import MovementType, StockMovement, InventoryStock, ClientSalesHistory, ClientLossHistory
+from app.models.stockMovement import MovementType, StockMovement, InventoryStock, ClientSalesHistory
 from app.repository.stock.client_stock_repository import get_client_stock_by_cost_center, update_client_stock_quantity
-from app.repository.stock.stock_movement_repository import get_all_stock_movements, get_current_stock, get_product_entries
+from app.repository.stock.stock_movement_repository import (
+    get_all_stock_movements,
+    get_current_stock,
+    get_product_entries,
+    get_client_loss_history as repo_get_client_loss_history,
+    get_client_sales_and_loss_history as repo_get_client_sales_and_loss_history,
+)
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementLost, RegisterClientSalesDTO, StockMovementRead
-from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead
+from app.schemas.stock_schemas.stock_movement_schema import (
+    StockEntryRead,
+    ClientSalesHistoryRead,
+    ClientLossHistoryRead,
+    ClientSalesLossHistoryRead,
+)
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
 from datetime import date
 
@@ -511,16 +522,31 @@ class StockMovementService:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
     ) -> list[ClientLossHistoryRead]:
-        q = db.query(ClientLossHistory).filter(ClientLossHistory.cost_center_id == cost_center_id)
-        if product_id is not None:
-            q = q.filter(ClientLossHistory.product_id == product_id)
-        if start_date is not None:
-            q = q.filter(ClientLossHistory.date >= start_date)
-        if end_date is not None:
-            q = q.filter(ClientLossHistory.date <= end_date)
-        q = q.order_by(ClientLossHistory.date.asc())
-        items = q.all()
+        items = repo_get_client_loss_history(
+            db,
+            cost_center_id=cost_center_id,
+            product_id=product_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
         return [ClientLossHistoryRead.model_validate(i) for i in items]
+
+    @staticmethod
+    def get_client_sales_and_loss_history_service(
+        db: Session,
+        cost_center_id: int,
+        product_id: Optional[int] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> list[ClientSalesLossHistoryRead]:
+        items = repo_get_client_sales_and_loss_history(
+            db,
+            cost_center_id=cost_center_id,
+            product_id=product_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return [ClientSalesLossHistoryRead.model_validate(i) for i in items]
 
     @staticmethod
     def get_sales_quantity_service(

@@ -119,6 +119,20 @@ class ClientLossHistoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ClientSalesLossHistoryRead(BaseModel):
+    cost_center_id: int
+    product_id: int
+    date: date
+    sold_quantity: int = 0
+    lost_quantity: int = 0
+    previous_ticket_id: Optional[int] = None
+    previous_ticket_order_date: Optional[date] = None
+    previous_ticket_name: Optional[str] = None
+    previous_ticket_quantity: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SalesQuantityResponse(BaseModel):
     product_id: int
     start_date: date

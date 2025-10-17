@@ -77,6 +77,22 @@ def get_client_loss_history_controller(
     )
 
 
+def get_client_sales_and_loss_history_controller(
+    db: Session,
+    cost_center_id: int,
+    product_id: int | None,
+    start_date,
+    end_date,
+):
+    return StockMovementService.get_client_sales_and_loss_history_service(
+        db=db,
+        cost_center_id=cost_center_id,
+        product_id=product_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
 def get_sales_quantity_controller(
     db: Session,
     *,
