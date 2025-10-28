@@ -133,6 +133,24 @@ class ClientSalesLossHistoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DailySalesLossResultRead(BaseModel):
+    date: date
+    product_id: int
+    product_name: Optional[str] = None
+    sold_quantity: int = 0
+    lost_quantity: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DailyCostCenterSalesLossGroupRead(BaseModel):
+    cost_center_id: int
+    cost_center_name: Optional[str] = None
+    results: List[DailySalesLossResultRead]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SalesQuantityResponse(BaseModel):
     product_id: int
     start_date: date

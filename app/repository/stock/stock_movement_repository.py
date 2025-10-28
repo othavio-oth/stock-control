@@ -1,6 +1,6 @@
 ﻿from collections import defaultdict
 from time import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Sequence, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import case, extract, func
 from app.models.tickets import Ticket, TicketProduct
@@ -279,6 +279,148 @@ def get_client_sales_and_loss_history(
                 )
 
     return sorted(combined.values(), key=lambda item: (item["product_id"], item["date"]))
+
+
+def get_daily_sales_and_loss_grouped_by_cost_center(
+    db: Session,
+    *,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    cost_center_ids: Optional[Sequence[int]] = None,
+    product_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Soma vendas e perdas por cost center/produto/dia, agrupando resultados por cost center.
+    """
+    sales_query = (
+        db.query(
+            ClientSalesHistory.cost_center_id,
+            ClientSalesHistory.product_id,
+            ClientSalesHistory.date,
+            func.coalesce(func.sum(ClientSalesHistory.sold_quantity), 0).label("sold_quantity"),
+        )
+    )
+    loss_query = (
+        db.query(
+            ClientLossHistory.cost_center_id,
+            ClientLossHistory.product_id,
+            ClientLossHistory.date,
+            func.coalesce(func.sum(ClientLossHistory.lost_quantity), 0).label("lost_quantity"),
+        )
+    )
+
+    if start_date is not None:
+        sales_query = sales_query.filter(ClientSalesHistory.date >= start_date)
+        loss_query = loss_query.filter(ClientLossHistory.date >= start_date)
+    if end_date is not None:
+        sales_query = sales_query.filter(ClientSalesHistory.date <= end_date)
+        loss_query = loss_query.filter(ClientLossHistory.date <= end_date)
+    if product_id is not None:
+        sales_query = sales_query.filter(ClientSalesHistory.product_id == product_id)
+        loss_query = loss_query.filter(ClientLossHistory.product_id == product_id)
+    if cost_center_ids:
+        sales_query = sales_query.filter(ClientSalesHistory.cost_center_id.in_(cost_center_ids))
+        loss_query = loss_query.filter(ClientLossHistory.cost_center_id.in_(cost_center_ids))
+
+    sales_rows = sales_query.group_by(
+        ClientSalesHistory.cost_center_id,
+        ClientSalesHistory.product_id,
+        ClientSalesHistory.date,
+    ).all()
+    loss_rows = loss_query.group_by(
+        ClientLossHistory.cost_center_id,
+        ClientLossHistory.product_id,
+        ClientLossHistory.date,
+    ).all()
+
+    if not sales_rows and not loss_rows:
+        return []
+
+    combined: Dict[int, Dict[tuple[int, date], Dict[str, Any]]] = defaultdict(dict)
+    product_ids: Set[int] = set()
+    cc_ids: Set[int] = set()
+
+    for row in sales_rows:
+        key = (row.product_id, row.date)
+        bucket = combined[row.cost_center_id].setdefault(
+            key,
+            {
+                "cost_center_id": row.cost_center_id,
+                "product_id": row.product_id,
+                "date": row.date,
+                "sold_quantity": 0,
+                "lost_quantity": 0,
+            },
+        )
+        bucket["sold_quantity"] += int(row.sold_quantity or 0)
+        product_ids.add(row.product_id)
+        cc_ids.add(row.cost_center_id)
+
+    for row in loss_rows:
+        key = (row.product_id, row.date)
+        bucket = combined[row.cost_center_id].setdefault(
+            key,
+            {
+                "cost_center_id": row.cost_center_id,
+                "product_id": row.product_id,
+                "date": row.date,
+                "sold_quantity": 0,
+                "lost_quantity": 0,
+            },
+        )
+        bucket["lost_quantity"] += int(row.lost_quantity or 0)
+        product_ids.add(row.product_id)
+        cc_ids.add(row.cost_center_id)
+
+    product_names: Dict[int, str] = {}
+    if product_ids:
+        rows = (
+            db.query(Product.id, Product.name)
+            .filter(Product.id.in_(product_ids))
+            .all()
+        )
+        product_names = {pid: name for pid, name in rows}
+
+    cost_center_names: Dict[int, str] = {}
+    if cc_ids:
+        rows = (
+            db.query(CostCenter.id, CostCenter.name)
+            .filter(CostCenter.id.in_(cc_ids))
+            .all()
+        )
+        cost_center_names = {cid: name for cid, name in rows}
+
+    result: List[Dict[str, Any]] = []
+    for cc_id, items in combined.items():
+        entries = []
+        for (product_id_value, day), payload in sorted(
+            items.items(), key=lambda entry: (entry[0][1], entry[0][0])
+        ):
+            entries.append(
+                {
+                    "date": payload["date"],
+                    "product_id": product_id_value,
+                    "product_name": product_names.get(product_id_value),
+                    "sold_quantity": payload["sold_quantity"],
+                    "lost_quantity": payload["lost_quantity"],
+                }
+            )
+
+        result.append(
+            {
+                "cost_center_id": cc_id,
+                "cost_center_name": cost_center_names.get(cc_id),
+                "results": entries,
+            }
+        )
+
+    return sorted(
+        result,
+        key=lambda item: (
+            (item["cost_center_name"] or "").lower(),
+            item["cost_center_id"],
+        ),
+    )
 
 
 def get_all_stock_movements(

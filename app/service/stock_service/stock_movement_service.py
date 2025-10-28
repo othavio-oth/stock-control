@@ -12,6 +12,7 @@ from app.repository.stock.stock_movement_repository import (
     get_product_entries,
     get_client_loss_history as repo_get_client_loss_history,
     get_client_sales_and_loss_history as repo_get_client_sales_and_loss_history,
+    get_daily_sales_and_loss_grouped_by_cost_center as repo_get_daily_sales_and_loss_grouped_by_cost_center,
 )
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementLost, RegisterClientSalesDTO, StockMovementRead
 from app.schemas.stock_schemas.stock_movement_schema import (
@@ -19,6 +20,7 @@ from app.schemas.stock_schemas.stock_movement_schema import (
     ClientSalesHistoryRead,
     ClientLossHistoryRead,
     ClientSalesLossHistoryRead,
+    DailyCostCenterSalesLossGroupRead,
 )
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
 from datetime import date
@@ -547,6 +549,24 @@ class StockMovementService:
             end_date=end_date,
         )
         return [ClientSalesLossHistoryRead.model_validate(i) for i in items]
+
+    @staticmethod
+    def get_daily_sales_and_loss_by_cost_center_service(
+        db: Session,
+        *,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        cost_center_ids: Optional[List[int]] = None,
+        product_id: Optional[int] = None,
+    ) -> list[DailyCostCenterSalesLossGroupRead]:
+        items = repo_get_daily_sales_and_loss_grouped_by_cost_center(
+            db,
+            start_date=start_date,
+            end_date=end_date,
+            cost_center_ids=cost_center_ids,
+            product_id=product_id,
+        )
+        return [DailyCostCenterSalesLossGroupRead.model_validate(i) for i in items]
 
     @staticmethod
     def get_sales_quantity_service(
