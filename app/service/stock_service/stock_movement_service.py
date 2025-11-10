@@ -512,7 +512,7 @@ class StockMovementService:
             q = q.filter(ClientSalesHistory.date >= start_date)
         if end_date is not None:
             q = q.filter(ClientSalesHistory.date <= end_date)
-        q = q.order_by(ClientSalesHistory.date.asc())
+        q = q.order_by(ClientSalesHistory.date.desc())
         items = q.all()
         return [ClientSalesHistoryRead.model_validate(i) for i in items]
 

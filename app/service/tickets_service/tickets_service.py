@@ -8,10 +8,11 @@ from sqlalchemy.orm import joinedload
 from app.models.product import Product
 from app.models.stockMovement import InventoryStock, MovementType, StockMovement
 from app.repository.stock.stock_movement_repository import process_stock_movement
-from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_last_approved_ticket_id_for_cc_product, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket, update_ticket_product, update_ticket_product_unit_price
+from app.repository.tickets.tickets_repository import create_ticket, get_all_tickets, get_last_approved_ticket_id_for_cc_product, get_ticket_by_id, search_tickets_any, update_ticket, delete_ticket, add_product_to_ticket, get_products_by_ticket, get_products_ticket_by_id, get_ticket_products, remove_product_from_ticket, update_ticket_product, update_ticket_product_unit_price, create_inventory_visit_record, list_inventory_visits_by_ticket
 from app.models.tickets import Ticket, TicketProduct
 from app.schemas.stock_schemas.stock_movement_schema import  StockMovementSaleCreate
 from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
+from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitCreate
 from fastapi import HTTPException
 from starlette.status import HTTP_404_NOT_FOUND
 from sqlalchemy.exc import IntegrityError
@@ -139,6 +140,39 @@ class TicketService:
             raise ValueError("unit_price inválido")
         tp = update_ticket_product_unit_price(db, ticket_product_id, unit_price)
         return tp
+
+    @staticmethod
+    def register_inventory_visit(
+        db: Session,
+        ticket_id: int,
+        visit_data: InventoryVisitCreate,
+        recorded_by: Optional[int],
+    ):
+        ticket = get_ticket_by_id(db, ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket nǜo encontrado")
+
+        if not visit_data.products:
+            raise HTTPException(status_code=400, detail="products nǜo pode ser vazio")
+
+        visited_at = visit_data.visited_at or datetime.now()
+        product_entries = [p.model_dump() for p in visit_data.products]
+        return create_inventory_visit_record(
+            db,
+            ticket=ticket,
+            recorded_by=recorded_by,
+            visited_at=visited_at,
+            total_stock_quantity=visit_data.total_stock_quantity,
+            notes=visit_data.notes,
+            product_entries=product_entries,
+        )
+
+    @staticmethod
+    def list_inventory_visits(db: Session, ticket_id: int):
+        ticket = get_ticket_by_id(db, ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket nuo encontrado")
+        return list_inventory_visits_by_ticket(db, ticket_id)
     
     
     @staticmethod

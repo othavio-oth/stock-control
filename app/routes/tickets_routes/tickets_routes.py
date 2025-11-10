@@ -1,10 +1,11 @@
 from datetime import datetime
 from fastapi import Query
-from app.controller.tickets_controller.tickets_controller import close_ticket_controller, process_sales_controller, search_tickets_by_term_controller
+from app.controller.tickets_controller.tickets_controller import close_ticket_controller, process_sales_controller, search_tickets_by_term_controller, register_inventory_visit_controller, list_inventory_visits_controller
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from app.schemas.products_schemas.product_price_schema import UnitPricePayload
 from app.schemas.products_schemas.sales_schemas import MultiCycleAnalysisResponse, ProductHistoryAnalysis
 from app.schemas.tickets_schemas.tickets_schemas import TicketProductUpdateDTO, TicketRegisterSales
+from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitCreate, InventoryVisitResponse
 from app.service.tickets_service.ticket_recommendations_service import get_daily_sales_avg_for_last_cycles, get_daily_sales_avg_for_ticket
 from app.service.tickets_service.tickets_service import TicketService
 from . import *
@@ -119,37 +120,7 @@ def get_last_approved_ticket_id(
 ):
     return TicketService.get_last_approved_ticket_id_service(db, cost_center_id, product_id)
 
-@router.get("/{ticket_id}/average-daily-sales/", include_in_schema=False)
-@router.get("/{ticket_id}/average-daily-sales")
-def average_daily_sales_endpoint(
-    ticket_id: int,
-    evaluation_time: Optional[str] = Query(
-        default=None,
-        description="Momento de referência (ISO 8601). Ex.: 2025-08-18T14:30:00"
-    ),
-    db: Session = Depends(get_db),
-):
-    """
-    Retorna, para cada produto do ticket, a média de vendas por hora e por dia (24h),
-    calculada do dia seguinte (00:00) ao último ticket aprovado que continha o produto até
-    `evaluation_time` (ou agora, se omitido).
-    """
-    try:
-        eval_dt: Optional[datetime] = None
-        if evaluation_time:
-            try:
-                eval_dt = datetime.fromisoformat(evaluation_time)
-            except ValueError:
-                raise HTTPException(status_code=400, detail="evaluation_time inválido. Use ISO 8601 (ex.: 2025-08-18T14:30:00)")
-
-        data = get_daily_sales_avg_for_ticket(db=db, ticket_id=ticket_id, evaluation_time=eval_dt)
-        return {"ticket_id": ticket_id, "items": data}
-    except ValueError as e:
-        # Erros de validação do service (ex.: ticket não encontrado)
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao calcular médias: {str(e)}")
-    
+ 
     
     
 @router.get("/{ticket_id}/analysis/history/", include_in_schema=False)
@@ -199,3 +170,32 @@ def update_ticket_product(
         "entry_price": str(updated.entry_price) if updated.entry_price is not None else None,
         "message": "Produto do ticket atualizado com sucesso.",
     }
+
+
+@router.post("/tickets/{ticket_id}/visits", include_in_schema=False)
+@router.post(
+    "/tickets/{ticket_id}/visits/",
+    response_model=InventoryVisitResponse,
+    tags=["Tickets"],
+)
+def register_inventory_visit_route(
+    ticket_id: int,
+    visit_data: InventoryVisitCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    recorded_by = user.get("id") if isinstance(user, dict) else None
+    return register_inventory_visit_controller(ticket_id, visit_data, db, recorded_by)
+
+
+@router.get("/tickets/{ticket_id}/visits", include_in_schema=False)
+@router.get(
+    "/tickets/{ticket_id}/visits/",
+    response_model=List[InventoryVisitResponse],
+    tags=["Tickets"],
+)
+def list_inventory_visits_route(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+):
+    return list_inventory_visits_controller(ticket_id, db)

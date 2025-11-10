@@ -1,8 +1,8 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Iterable, Optional
 
 from fastapi import HTTPException
-from app.models.stockMovement import StockMovement
+from app.models.stockMovement import StockMovement, InventoryVisit, InventoryVisitProduct
 from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead, StockMovementSaleCreate
 from app.schemas.tickets_schemas.tickets_schemas import TicketProductBase
 from . import *
@@ -15,7 +15,13 @@ def search_tickets_any( search_term: str,page:int,db: Session):
     offset = (page - 1) * page_size
     base_query = (
         db.query(Ticket)
-          .options(joinedload(Ticket.products).joinedload(TicketProduct.product))  # <-- aqui
+          .options(
+              joinedload(Ticket.products).joinedload(TicketProduct.product),
+              joinedload(Ticket.inventory_visits)
+              .joinedload(InventoryVisit.products)
+              .joinedload(InventoryVisitProduct.product),
+              joinedload(Ticket.inventory_visits).joinedload(InventoryVisit.cost_center),
+          )  # <-- aqui
           .join(CostCenter)
           .filter(
               or_(
@@ -42,7 +48,19 @@ def get_all_tickets(page:int,db: Session):
     page_size = 20
     offset = (page - 1) * page_size
     total = db.query(Ticket).count()
-    tickets = db.query(Ticket).options(joinedload(Ticket.products).joinedload(TicketProduct.product)).offset(offset).limit(page_size).all()
+    tickets = (
+        db.query(Ticket)
+        .options(
+            joinedload(Ticket.products).joinedload(TicketProduct.product),
+            joinedload(Ticket.inventory_visits)
+            .joinedload(InventoryVisit.products)
+            .joinedload(InventoryVisitProduct.product),
+            joinedload(Ticket.inventory_visits).joinedload(InventoryVisit.cost_center),
+        )
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
     total_pages = (total + page_size - 1) // page_size
     return {
     "items": tickets,
@@ -55,7 +73,13 @@ def get_all_tickets(page:int,db: Session):
 def get_ticket_by_id(db: Session, ticket_id: int):
     return (
         db.query(Ticket)
-        .options(joinedload(Ticket.products).joinedload(TicketProduct.product))
+        .options(
+            joinedload(Ticket.products).joinedload(TicketProduct.product),
+            joinedload(Ticket.inventory_visits)
+            .joinedload(InventoryVisit.products)
+            .joinedload(InventoryVisitProduct.product),
+            joinedload(Ticket.inventory_visits).joinedload(InventoryVisit.cost_center),
+        )
         .filter(Ticket.id == ticket_id)
         .first()
     )
@@ -284,6 +308,61 @@ def update_ticket_product(db: Session, ticket_id: int, product_id: int, updates:
 
 
 
+
+
+def create_inventory_visit_record(
+    db: Session,
+    *,
+    ticket: Ticket,
+    recorded_by: Optional[int],
+    visited_at: datetime,
+    total_stock_quantity: Optional[int],
+    notes: Optional[str],
+    product_entries: Iterable[dict],
+) -> InventoryVisit:
+    visit = InventoryVisit(
+        cost_center_id=ticket.cost_center_id,
+        ticket_id=ticket.id,
+        recorded_by=recorded_by,
+        visited_at=visited_at,
+        total_stock_quantity=total_stock_quantity,
+        notes=notes,
+    )
+    db.add(visit)
+    db.flush()
+
+    total_from_products = 0
+    for entry in product_entries:
+        stock_qty = int(entry.get("stock_quantity", 0))
+        product_visit = InventoryVisitProduct(
+            inventory_visit_id=visit.id,
+            product_id=entry["product_id"],
+            stock_quantity=stock_qty,
+            sales_quantity=int(entry.get("sales_quantity", 0) or 0),
+            loss_quantity=int(entry.get("loss_quantity", 0) or 0),
+        )
+        total_from_products += stock_qty
+        db.add(product_visit)
+
+    if total_stock_quantity is None:
+        visit.total_stock_quantity = total_from_products
+
+    db.commit()
+    db.refresh(visit)
+    return visit
+
+
+def list_inventory_visits_by_ticket(db: Session, ticket_id: int) -> list[InventoryVisit]:
+    return (
+        db.query(InventoryVisit)
+        .options(
+            joinedload(InventoryVisit.products).joinedload(InventoryVisitProduct.product),
+            joinedload(InventoryVisit.cost_center),
+        )
+        .filter(InventoryVisit.ticket_id == ticket_id)
+        .order_by(InventoryVisit.visited_at.desc())
+        .all()
+    )
 
 def get_last_approved_ticket_by_cost_center(db: Session, cost_center_id: int):
     return (

@@ -1,4 +1,5 @@
 from app.models.tickets import Ticket
+from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitCreate
 from . import *
 
 def list_tickets(page,db):
@@ -43,3 +44,9 @@ def search_tickets_by_term_controller(search_term,page, db):
 
 def process_sales_controller(ticket: Ticket, db: Session):
     return TicketService.process_sales(ticket, db)
+
+def register_inventory_visit_controller(ticket_id: int, visit_data: InventoryVisitCreate, db: Session, recorded_by: int | None):
+    return TicketService.register_inventory_visit(db, ticket_id, visit_data, recorded_by)
+
+def list_inventory_visits_controller(ticket_id: int, db: Session):
+    return TicketService.list_inventory_visits(db, ticket_id)

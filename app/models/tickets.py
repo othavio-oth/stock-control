@@ -54,8 +54,9 @@ class Ticket(Base):
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     products = relationship("TicketProduct", back_populates="ticket",     cascade="all, delete-orphan"
 )
+    inventory_visits = relationship("InventoryVisit", back_populates="ticket", cascade="all, delete-orphan")
 
-    
+
     class Config:
         from_attributes = True
 

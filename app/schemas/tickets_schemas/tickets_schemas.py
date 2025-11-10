@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Annotated, List, Optional
 from datetime import date
 
+from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitResponse
 
 class TicketProductBase(BaseModel):
     ticket_id: Optional[int] = None
@@ -65,6 +66,7 @@ class TicketRegisterSales(TicketBase):
 class TicketResponse(TicketBase):
     id: int
     products: List[TicketProductResponse] = []
+    inventory_visits: List[InventoryVisitResponse] = []
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
