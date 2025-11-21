@@ -64,5 +64,19 @@ def get_cost_center_product_visits_controller(cost_center_id: int, product_ids: 
         product_ids=product_ids,
     )
 
+def get_cost_center_latest_visits_controller(cost_center_id: int, limit: int, ticket_id: int | None, db: Session):
+    return TicketService.get_cost_center_latest_visits(
+        db,
+        cost_center_id=cost_center_id,
+        limit=limit,
+        ticket_id=ticket_id,
+    )
+
 def get_previous_approved_ticket_controller(ticket_id: int, db: Session):
     return TicketService.get_previous_approved_ticket_service(db, ticket_id)
+
+def get_ticket_visit_summary_controller(ticket_id: int, db: Session):
+    return TicketService.get_ticket_visit_summary(db, ticket_id)
+
+def get_cost_center_last_visit_next_qty_controller(cost_center_id: int, db: Session):
+    return TicketService.get_cost_center_last_visit_next_qty(db, cost_center_id)

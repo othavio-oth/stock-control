@@ -11,6 +11,9 @@ from app.controller.tickets_controller.tickets_controller import (
     get_ticket_cycle_products_controller,
     get_cost_center_product_visits_controller,
     get_previous_approved_ticket_controller,
+    get_cost_center_latest_visits_controller,
+    get_ticket_visit_summary_controller,
+    get_cost_center_last_visit_next_qty_controller,
 )
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from app.schemas.products_schemas.product_price_schema import UnitPricePayload
@@ -23,6 +26,9 @@ from app.schemas.tickets_schemas.inventory_visit_schema import (
     InventoryVisitHistoryPaginatedResponse,
     TicketCycleProductsResponse,
     CostCenterProductVisitsResponse,
+    CostCenterLatestVisitsResponse,
+    TicketVisitSummaryResponse,
+    LastVisitNextQtyResponse,
 )
 from app.service.tickets_service.ticket_recommendations_service import get_daily_sales_avg_for_last_cycles, get_daily_sales_avg_for_ticket
 from app.service.tickets_service.tickets_service import TicketService
@@ -252,6 +258,44 @@ def get_ticket_cycle_products_route(
     db: Session = Depends(get_db),
 ):
     return get_ticket_cycle_products_controller(ticket_id, db)
+
+@router.get("/tickets/{ticket_id}/visit-summary", include_in_schema=False)
+@router.get(
+    "/tickets/{ticket_id}/visit-summary/",
+    response_model=TicketVisitSummaryResponse,
+    tags=["Visits"],
+)
+def get_ticket_visit_summary_route(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_ticket_visit_summary_controller(ticket_id, db)
+
+@router.get("/cost-centers/{cost_center_id}/visits/latest-next-qty", include_in_schema=False)
+@router.get(
+    "/cost-centers/{cost_center_id}/visits/latest-next-qty/",
+    response_model=LastVisitNextQtyResponse,
+    tags=["Visits"],
+)
+def get_cost_center_last_visit_next_qty_route(
+    cost_center_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_cost_center_last_visit_next_qty_controller(cost_center_id, db)
+
+@router.get("/cost-centers/{cost_center_id}/visits/latest", include_in_schema=False)
+@router.get(
+    "/cost-centers/{cost_center_id}/visits/latest/",
+    response_model=CostCenterLatestVisitsResponse,
+    tags=["Visits"],
+)
+def get_cost_center_latest_visits_route(
+    cost_center_id: int,
+    limit: int = Query(2, ge=1, le=20),
+    ticket_id: Optional[int] = Query(None, ge=1),
+    db: Session = Depends(get_db),
+):
+    return get_cost_center_latest_visits_controller(cost_center_id, limit, ticket_id, db)
 
 @router.get("/cost-centers/{cost_center_id}/product-visits", include_in_schema=False)
 @router.get(

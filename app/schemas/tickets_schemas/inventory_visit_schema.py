@@ -11,6 +11,9 @@ class InventoryVisitProductBase(BaseModel):
     stock_quantity: int = Field(ge=0)
     sales_quantity: int = Field(default=0, ge=0)
     loss_quantity: int = Field(default=0, ge=0)
+    next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class InventoryVisitProductCreate(InventoryVisitProductBase):
@@ -20,7 +23,7 @@ class InventoryVisitProductCreate(InventoryVisitProductBase):
 class InventoryVisitProductResponse(InventoryVisitProductBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class InventoryVisitProductWithHistoryResponse(InventoryVisitProductBase):
@@ -102,8 +105,61 @@ class ProductVisitSnapshot(BaseModel):
     quantity_ordered: Optional[int] = None
     stock_quantity: Optional[int] = None
     loss_quantity: Optional[int] = None
+    next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
 
 
 class CostCenterProductVisitsResponse(BaseModel):
     cost_center_id: int
     visits: List[ProductVisitSnapshot]
+
+
+class VisitProductSnapshot(BaseModel):
+    product_id: int
+    name: Optional[str] = None
+    custom_id: Optional[str] = None
+    quantity_ordered: Optional[int] = None
+    stock_quantity: Optional[int] = None
+    loss_quantity: Optional[int] = None
+    next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
+
+
+class CostCenterVisitSnapshot(BaseModel):
+    visit_id: int
+    ticket_id: Optional[int] = None
+    visited_at: Optional[str] = None
+    total_stock_quantity: Optional[int] = None
+    products: List[VisitProductSnapshot]
+
+
+class CostCenterLatestVisitsResponse(BaseModel):
+    cost_center_id: int
+    visits: List[CostCenterVisitSnapshot]
+
+
+class TicketVisitSummaryItem(BaseModel):
+    product_id: int
+    loss_last: Optional[int] = None
+    loss_prev: Optional[int] = None
+    sales_last: Optional[int] = None
+    sales_prev: Optional[int] = None
+    stock_last: Optional[int] = None
+    stock_prev: Optional[int] = None
+    order_last: Optional[int] = None
+    order_prev: Optional[int] = None
+
+
+class TicketVisitSummaryResponse(BaseModel):
+    ticket_id: int
+    items: List[TicketVisitSummaryItem]
+
+
+class LastVisitProductNextQty(BaseModel):
+    product_id: int
+    next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
+
+
+class LastVisitNextQtyResponse(BaseModel):
+    cost_center_id: int
+    visit_id: Optional[int] = None
+    visited_at: Optional[str] = None
+    products: List[LastVisitProductNextQty]

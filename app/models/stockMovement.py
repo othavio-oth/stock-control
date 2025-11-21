@@ -147,6 +147,7 @@ class InventoryVisitProduct(Base):
     stock_quantity = Column(Integer, nullable=False)
     sales_quantity = Column(Integer, nullable=False, default=0)
     loss_quantity = Column(Integer, nullable=False, default=0)
+    next_quantity = Column(Integer, nullable=True)
 
     visit = relationship("InventoryVisit", back_populates="products")
     product = relationship("Product")

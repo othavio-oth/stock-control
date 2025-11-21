@@ -350,12 +350,15 @@ def create_inventory_visit_record(
             raise ValueError("product_entries deve conter product_id válido")
         product_ids.add(product_id)
         stock_qty = int(entry.get("stock_quantity", 0))
+        next_qty = entry.get("next_qty", entry.get("nextQty"))
+        next_qty_int = int(next_qty) if next_qty is not None else None
         product_visit = InventoryVisitProduct(
             inventory_visit_id=visit.id,
             product_id=product_id,
             stock_quantity=stock_qty,
             sales_quantity=int(entry.get("sales_quantity", 0) or 0),
             loss_quantity=int(entry.get("loss_quantity", 0) or 0),
+            next_quantity=next_qty_int,
         )
         total_from_products += stock_qty
         db.add(product_visit)
@@ -441,12 +444,15 @@ def update_inventory_visit_record(
                 product_id = int(entry["product_id"])
             except (KeyError, TypeError, ValueError):
                 raise ValueError("product_entries deve conter product_id válido")
+            next_qty = entry.get("next_qty", entry.get("nextQty"))
+            next_qty_int = int(next_qty) if next_qty is not None else None
             product_visit = InventoryVisitProduct(
                 inventory_visit_id=visit.id,
                 product_id=product_id,
                 stock_quantity=stock_qty,
                 sales_quantity=int(entry.get("sales_quantity", 0) or 0),
                 loss_quantity=int(entry.get("loss_quantity", 0) or 0),
+                next_quantity=next_qty_int,
             )
             total_from_products += stock_qty
             visit.products.append(product_visit)

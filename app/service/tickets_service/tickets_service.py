@@ -3,7 +3,7 @@ from typing import Optional, List
 import re
 from fastapi import HTTPException
 from pytest import Session
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, text
 from sqlalchemy.orm import joinedload
 from app.models.product import Product
 from app.models.stockMovement import (
@@ -53,6 +53,13 @@ from app.schemas.tickets_schemas.inventory_visit_schema import (
     ProductCycleBlock,
     ProductVisitSnapshot,
     CostCenterProductVisitsResponse,
+    CostCenterLatestVisitsResponse,
+    CostCenterVisitSnapshot,
+    VisitProductSnapshot,
+    TicketVisitSummaryResponse,
+    TicketVisitSummaryItem,
+    LastVisitNextQtyResponse,
+    LastVisitProductNextQty,
 )
 from fastapi import HTTPException
 from starlette.status import HTTP_404_NOT_FOUND
@@ -143,6 +150,7 @@ class TicketService:
                 InventoryVisit.visited_at.label("visited_at"),
                 InventoryVisitProduct.stock_quantity.label("stock_quantity"),
                 InventoryVisitProduct.loss_quantity.label("loss_quantity"),
+                InventoryVisitProduct.next_quantity.label("next_quantity"),
                 func.coalesce(ClientSalesHistory.sold_quantity, 0).label("sales_quantity_history"),
                 func.coalesce(ClientLossHistory.lost_quantity, 0).label("loss_quantity_history"),
                 TicketProduct.quantity_ordered.label("quantity_ordered"),
@@ -404,6 +412,12 @@ class TicketService:
         if not ticket:
             raise HTTPException(status_code=404, detail="Ticket nuo encontrado")
         visits = list_inventory_visits_by_ticket(db, ticket_id)
+
+        # Evita retornar visitas registradas depois da criação do ticket
+        if getattr(ticket, "order_date", None) is not None:
+            cutoff = datetime.combine(ticket.order_date, datetime.max.time())
+            visits = [v for v in visits if v.visited_at and v.visited_at <= cutoff]
+
         if TicketService._user_is_admin(db, current_user_id):
             return visits
         return [
@@ -522,12 +536,187 @@ class TicketService:
                             if getattr(visit_row, "loss_quantity", None) is not None
                             else None
                         ),
+                        next_qty=(
+                            int(visit_row.next_quantity)
+                            if getattr(visit_row, "next_quantity", None) is not None
+                            else None
+                        ),
                     )
                 )
 
         return CostCenterProductVisitsResponse(
             cost_center_id=cost_center_id,
             visits=visits_payload,
+        )
+
+    @staticmethod
+    def get_cost_center_latest_visits(
+        db: Session,
+        *,
+        cost_center_id: int,
+        limit: int = 2,
+        ticket_id: Optional[int] = None,
+    ) -> CostCenterLatestVisitsResponse:
+        effective_limit = limit if isinstance(limit, int) and limit > 0 else 2
+        base_query = (
+            db.query(InventoryVisit)
+            .options(
+                joinedload(InventoryVisit.products).joinedload(InventoryVisitProduct.product),
+            )
+            .filter(InventoryVisit.cost_center_id == cost_center_id)
+            .order_by(InventoryVisit.visited_at.desc(), InventoryVisit.id.desc())
+        )
+
+        visits: list[InventoryVisit] = []
+        if ticket_id:
+            ticket = get_ticket_by_id(db, ticket_id)
+            if not ticket:
+                raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Ticket nao encontrado.")
+
+            cutoff = None
+            ticket_created_at = getattr(ticket, "created_at", None)
+            if ticket_created_at:
+                cutoff = ticket_created_at
+            elif getattr(ticket, "order_date", None) is not None:
+                cutoff = datetime.combine(ticket.order_date, datetime.max.time())
+
+            if cutoff is None:
+                raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Data de referencia do ticket nao encontrada.")
+
+            visits = (
+                base_query.filter(InventoryVisit.visited_at < cutoff)
+                .limit(effective_limit)
+                .all()
+            )
+        else:
+            visits_query = base_query
+            if effective_limit > 0:
+                visits_query = visits_query.limit(effective_limit)
+            visits = visits_query.all()
+
+        if not visits:
+            return CostCenterLatestVisitsResponse(cost_center_id=cost_center_id, visits=[])
+
+        ticket_ids = {visit.ticket_id for visit in visits if visit.ticket_id}
+        ticket_product_rows = (
+            db.query(
+                TicketProduct.ticket_id.label("ticket_id"),
+                TicketProduct.product_id.label("product_id"),
+                TicketProduct.quantity_ordered.label("quantity_ordered"),
+            )
+            .filter(TicketProduct.ticket_id.in_(ticket_ids))
+            .all()
+            if ticket_ids
+            else []
+        )
+        quantity_map = {
+            (row.ticket_id, row.product_id): int(row.quantity_ordered) if row.quantity_ordered is not None else None
+            for row in ticket_product_rows
+        }
+
+        visit_payloads: list[CostCenterVisitSnapshot] = []
+        for visit in visits:
+            products_payload: list[VisitProductSnapshot] = []
+            for product_entry in visit.products or []:
+                products_payload.append(
+                    VisitProductSnapshot(
+                        product_id=product_entry.product_id,
+                        name=getattr(product_entry.product, "name", None),
+                        custom_id=getattr(product_entry.product, "custom_id", None),
+                        quantity_ordered=quantity_map.get((visit.ticket_id, product_entry.product_id)),
+                        stock_quantity=product_entry.stock_quantity,
+                        loss_quantity=product_entry.loss_quantity,
+                        next_qty=product_entry.next_quantity,
+                    )
+                )
+
+            visit_payloads.append(
+                CostCenterVisitSnapshot(
+                    visit_id=visit.id,
+                    ticket_id=visit.ticket_id,
+                    visited_at=TicketService._date_to_str(visit.visited_at),
+                    total_stock_quantity=visit.total_stock_quantity,
+                    products=products_payload,
+                )
+            )
+
+        return CostCenterLatestVisitsResponse(
+            cost_center_id=cost_center_id,
+            visits=visit_payloads,
+        )
+
+    @staticmethod
+    def get_ticket_visit_summary(db: Session, ticket_id: int) -> TicketVisitSummaryResponse:
+        rows = db.execute(
+            text(
+                """
+            SELECT
+                product_id,
+                loss_last,
+                loss_prev,
+                sales_last,
+                sales_prev,
+                stock_last,
+                stock_prev,
+                order_last,
+                order_prev
+            FROM ticket_product_visit_summary
+            WHERE ticket_id = :ticket_id
+            ORDER BY product_id
+                """
+            ),
+            {"ticket_id": ticket_id},
+        ).fetchall()
+
+        items = [
+            TicketVisitSummaryItem(
+                product_id=row.product_id,
+                loss_last=row.loss_last,
+                loss_prev=row.loss_prev,
+                sales_last=row.sales_last,
+                sales_prev=row.sales_prev,
+                stock_last=row.stock_last,
+                stock_prev=row.stock_prev,
+                order_last=row.order_last,
+                order_prev=row.order_prev,
+            )
+            for row in rows
+        ]
+        return TicketVisitSummaryResponse(ticket_id=ticket_id, items=items)
+
+    @staticmethod
+    def get_cost_center_last_visit_next_qty(
+        db: Session,
+        cost_center_id: int,
+    ) -> LastVisitNextQtyResponse:
+        visit = (
+            db.query(InventoryVisit)
+            .options(joinedload(InventoryVisit.products))
+            .filter(InventoryVisit.cost_center_id == cost_center_id)
+            .order_by(InventoryVisit.visited_at.desc(), InventoryVisit.id.desc())
+            .first()
+        )
+        if not visit:
+            return LastVisitNextQtyResponse(
+                cost_center_id=cost_center_id,
+                visit_id=None,
+                visited_at=None,
+                products=[],
+            )
+
+        products = [
+            LastVisitProductNextQty(
+                product_id=p.product_id,
+                next_qty=p.next_quantity,
+            )
+            for p in (visit.products or [])
+        ]
+
+        return LastVisitNextQtyResponse(
+            cost_center_id=cost_center_id,
+            visit_id=visit.id,
+            visited_at=TicketService._date_to_str(visit.visited_at),
+            products=products,
         )
 
 
@@ -552,6 +741,7 @@ class TicketService:
                         stock_quantity=product.stock_quantity,
                         sales_quantity=product.sales_quantity,
                         loss_quantity=product.loss_quantity,
+                        next_qty=product.next_quantity,
                         previous_quantity=(
                             int(prev.previous_quantity) if prev and prev.previous_quantity is not None else None
                         ),
