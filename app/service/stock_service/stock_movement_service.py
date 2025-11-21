@@ -13,14 +13,16 @@ from app.repository.stock.stock_movement_repository import (
     get_client_loss_history as repo_get_client_loss_history,
     get_client_sales_and_loss_history as repo_get_client_sales_and_loss_history,
     get_daily_sales_and_loss_grouped_by_cost_center as repo_get_daily_sales_and_loss_grouped_by_cost_center,
+    get_cycle_analysis_for_cost_center,
 )
-from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementLost, RegisterClientSalesDTO, StockMovementRead
+from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementRead
 from app.schemas.stock_schemas.stock_movement_schema import (
     StockEntryRead,
     ClientSalesHistoryRead,
     ClientLossHistoryRead,
     ClientSalesLossHistoryRead,
     DailyCostCenterSalesLossGroupRead,
+    CycleAnalysisProductRead,
 )
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
 from datetime import date
@@ -176,69 +178,6 @@ class StockMovementService:
                 )
             )
         return result
-
-    @staticmethod
-    def register_stock_loss_service(db: Session, loss_data: StockMovementLost):
-        if not loss_data.cost_center_id:
-            raise HTTPException(status_code=400, detail="cost_center_id é obrigatório para perdas do cliente")
-        if loss_data.quantity <= 0:
-            raise HTTPException(status_code=400, detail="quantity deve ser > 0")
-
-        movement = StockMovement(
-            product_id=loss_data.product_id,
-            quantity=loss_data.quantity,
-            movement_type=MovementType.CLIENT_LOSS,
-            cost_center_id=loss_data.cost_center_id,
-            created_at=loss_data.created_at or datetime.now(),
-        )
-        db.add(movement)
-        db.flush()
-
-        from app.repository.stock.stock_movement_repository import process_stock_movement as _repo_process
-        _repo_process(db, movement)
-
-        db.commit()
-        db.refresh(movement)
-        return movement
-
-    @staticmethod
-    def register_client_sale_service(db: Session, dto: RegisterClientSalesDTO) -> StockMovement:
-        if dto.total_sold <= 0:
-            raise HTTPException(status_code=400, detail="total_sold deve ser > 0")
-        # Lock e validação de estoque do cliente
-        from app.repository.stock.stock_movement_repository import (
-            get_or_create_client_stock_for_update,
-            decrement_client_stock,
-            upsert_sales_for_day,
-        )
-        cs = get_or_create_client_stock_for_update(
-            db=db,
-            cost_center_id=dto.cost_center_id,
-            product_id=dto.product_id,
-        )
-        decrement_client_stock(cs, total=dto.total_sold, allow_negative=False)
-        # Atualiza histórico diário de vendas para a data informada
-        upsert_sales_for_day(
-            db=db,
-            cost_center_id=dto.cost_center_id,
-            product_id=dto.product_id,
-            d=dto.registration_date,
-            qty=dto.total_sold,
-        )
-
-        # Registra um movimento para fins de auditoria
-        mv = StockMovement(
-            product_id=dto.product_id,
-            quantity=dto.total_sold,
-            movement_type=MovementType.CLIENT_SALE,
-            cost_center_id=dto.cost_center_id,
-            created_at=datetime.combine(dto.registration_date, datetime.min.time()).replace(hour=12, minute=0, second=0),
-        )
-        db.add(mv)
-
-        db.commit()
-        db.refresh(mv)
-        return mv
 
     @staticmethod
     def delete_supplier_purchase_entry_service(db: Session, movement_id: int) -> StockEntryRead:
@@ -519,6 +458,7 @@ class StockMovementService:
     @staticmethod
     def get_client_loss_history_service(
         db: Session,
+        *,
         cost_center_id: int,
         product_id: Optional[int] = None,
         start_date: Optional[date] = None,
@@ -531,6 +471,19 @@ class StockMovementService:
             start_date=start_date,
             end_date=end_date,
         )
+        if not items and product_id is not None:
+            target_date = end_date or start_date or date.today()
+            return [
+                ClientLossHistoryRead(
+                    id=0,
+                    cost_center_id=cost_center_id,
+                    product_id=product_id,
+                    date=target_date,
+                    lost_quantity=0,
+                    reason=None,
+                    observed_at=None,
+                )
+            ]
         return [ClientLossHistoryRead.model_validate(i) for i in items]
 
     @staticmethod
@@ -567,6 +520,20 @@ class StockMovementService:
             product_id=product_id,
         )
         return [DailyCostCenterSalesLossGroupRead.model_validate(i) for i in items]
+
+    @staticmethod
+    def get_cycle_analysis_service(
+        db: Session,
+        *,
+        ticket_id: int,
+        max_cycles: int,
+    ) -> list[CycleAnalysisProductRead]:
+        items = get_cycle_analysis_for_cost_center(
+            db,
+            ticket_id=ticket_id,
+            max_cycles=max_cycles,
+        )
+        return [CycleAnalysisProductRead.model_validate(i) for i in items]
 
     @staticmethod
     def get_sales_quantity_service(

@@ -28,12 +28,6 @@ def reset_inventory_stock_controller(db):
 #     return StockMovementService.get_monthly_sales_losses_stats_service(db, year)
 
 
-def register_stock_loss_controller(db, loss_data):
-    return StockMovementService.register_stock_loss_service(db, loss_data)
-
-def register_client_sale_controller(db, sale_data):
-    return StockMovementService.register_client_sale_service(db, sale_data)
-
 def get_product_entries_controller(db, product_id: int, page: int, page_size: int):
     return StockMovementService.get_product_entries_service(db, product_id, page, page_size)
 
@@ -107,6 +101,18 @@ def get_daily_sales_and_loss_grouped_by_cost_center_controller(
         end_date=end_date,
         cost_center_ids=cost_center_ids,
         product_id=product_id,
+    )
+
+def get_cycle_analysis_controller(
+    db: Session,
+    *,
+    ticket_id: int,
+    max_cycles: int,
+):
+    return StockMovementService.get_cycle_analysis_service(
+        db=db,
+        ticket_id=ticket_id,
+        max_cycles=max_cycles,
     )
 
 

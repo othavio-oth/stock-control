@@ -1,11 +1,29 @@
 from datetime import datetime
+from typing import List, Optional
 from fastapi import Query
-from app.controller.tickets_controller.tickets_controller import close_ticket_controller, process_sales_controller, search_tickets_by_term_controller, register_inventory_visit_controller, list_inventory_visits_controller
+from app.controller.tickets_controller.tickets_controller import (
+    close_ticket_controller,
+    process_sales_controller,
+    search_tickets_by_term_controller,
+    register_inventory_visit_controller,
+    update_inventory_visit_controller,
+    list_inventory_visits_controller,
+    get_ticket_cycle_products_controller,
+    get_cost_center_product_visits_controller,
+    get_previous_approved_ticket_controller,
+)
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from app.schemas.products_schemas.product_price_schema import UnitPricePayload
 from app.schemas.products_schemas.sales_schemas import MultiCycleAnalysisResponse, ProductHistoryAnalysis
 from app.schemas.tickets_schemas.tickets_schemas import TicketProductUpdateDTO, TicketRegisterSales
-from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitCreate, InventoryVisitResponse
+from app.schemas.tickets_schemas.inventory_visit_schema import (
+    InventoryVisitCreate,
+    InventoryVisitUpdate,
+    InventoryVisitResponse,
+    InventoryVisitHistoryPaginatedResponse,
+    TicketCycleProductsResponse,
+    CostCenterProductVisitsResponse,
+)
 from app.service.tickets_service.ticket_recommendations_service import get_daily_sales_avg_for_last_cycles, get_daily_sales_avg_for_ticket
 from app.service.tickets_service.tickets_service import TicketService
 from . import *
@@ -54,6 +72,11 @@ def search_tickets_any_route(
 @router.get("/tickets/{ticket_id}/products/", response_model=List[int], tags=["Tickets"])
 def get_products_for_ticket(ticket_id: int, db: Session = Depends(get_db)):
     return get_products_for_ticket_controller(ticket_id, db)
+
+@router.get("/tickets/{ticket_id}/previous-approved", include_in_schema=False)
+@router.get("/tickets/{ticket_id}/previous-approved/", response_model=TicketResponse, tags=["Tickets"])
+def get_previous_approved_ticket_route(ticket_id: int, db: Session = Depends(get_db)):
+    return get_previous_approved_ticket_controller(ticket_id, db)
 
 @router.get("/tickets/products", include_in_schema=False)
 @router.get("/tickets/products/", response_model=List[TicketProductResponse], tags=["Tickets"])
@@ -176,7 +199,7 @@ def update_ticket_product(
 @router.post(
     "/tickets/{ticket_id}/visits/",
     response_model=InventoryVisitResponse,
-    tags=["Tickets"],
+    tags=["Visits"],
 )
 def register_inventory_visit_route(
     ticket_id: int,
@@ -186,6 +209,22 @@ def register_inventory_visit_route(
 ):
     recorded_by = user.get("id") if isinstance(user, dict) else None
     return register_inventory_visit_controller(ticket_id, visit_data, db, recorded_by)
+
+@router.put("/tickets/{ticket_id}/visits/{visit_id}", include_in_schema=False)
+@router.put(
+    "/tickets/{ticket_id}/visits/{visit_id}/",
+    response_model=InventoryVisitResponse,
+    tags=["Visits"],
+)
+def update_inventory_visit_route(
+    ticket_id: int,
+    visit_id: int,
+    visit_data: InventoryVisitUpdate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    current_user_id = user.get("id") if isinstance(user, dict) else None
+    return update_inventory_visit_controller(ticket_id, visit_id, visit_data, db, current_user_id)
 
 
 @router.get("/tickets/{ticket_id}/visits", include_in_schema=False)
@@ -197,5 +236,46 @@ def register_inventory_visit_route(
 def list_inventory_visits_route(
     ticket_id: int,
     db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
-    return list_inventory_visits_controller(ticket_id, db)
+    current_user_id = user.get("id") if isinstance(user, dict) else None
+    return list_inventory_visits_controller(ticket_id, db, current_user_id)
+
+@router.get("/tickets/{ticket_id}/cycle-products", include_in_schema=False)
+@router.get(
+    "/tickets/{ticket_id}/cycle-products/",
+    response_model=TicketCycleProductsResponse,
+    tags=["Tickets"],
+)
+def get_ticket_cycle_products_route(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_ticket_cycle_products_controller(ticket_id, db)
+
+@router.get("/cost-centers/{cost_center_id}/product-visits", include_in_schema=False)
+@router.get(
+    "/cost-centers/{cost_center_id}/product-visits/",
+    response_model=CostCenterProductVisitsResponse,
+    tags=["Visits"],
+)
+def get_cost_center_product_visits_route(
+    cost_center_id: int,
+    product_ids: Optional[List[int]] = Query(None),
+    db: Session = Depends(get_db),
+):
+    return get_cost_center_product_visits_controller(cost_center_id, product_ids, db)
+
+
+@router.get("/visits", include_in_schema=False)
+@router.get(
+    "/visits/",
+    response_model=InventoryVisitHistoryPaginatedResponse,
+    tags=["Visits"],
+)
+def list_all_inventory_visits_route(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return TicketService.list_all_inventory_visits(db, page, page_size)

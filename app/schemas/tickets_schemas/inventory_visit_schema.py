@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,6 +23,11 @@ class InventoryVisitProductResponse(InventoryVisitProductBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class InventoryVisitProductWithHistoryResponse(InventoryVisitProductBase):
+    previous_quantity: Optional[int] = None
+    previous_visited_at: Optional[datetime] = None
+
+
 class InventoryVisitBase(BaseModel):
     visited_at: Optional[datetime] = None
     total_stock_quantity: Optional[int] = None
@@ -31,6 +36,10 @@ class InventoryVisitBase(BaseModel):
 
 class InventoryVisitCreate(InventoryVisitBase):
     products: List[InventoryVisitProductCreate] = Field(..., min_length=1)
+
+
+class InventoryVisitUpdate(InventoryVisitBase):
+    products: Optional[List[InventoryVisitProductCreate]] = None
 
 
 class InventoryVisitResponse(InventoryVisitBase):
@@ -42,3 +51,59 @@ class InventoryVisitResponse(InventoryVisitBase):
     products: List[InventoryVisitProductResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class InventoryVisitWithHistoryResponse(BaseModel):
+    ticket_id: int
+    visit_id: int
+    visited_at: Optional[datetime] = None
+    cost_center_id: int
+    products: List[InventoryVisitProductWithHistoryResponse]
+
+
+class InventoryVisitHistoryPaginatedResponse(BaseModel):
+    items: List[InventoryVisitWithHistoryResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class ProductCycleBlock(BaseModel):
+    ticket_id: Optional[int] = None
+    date: Optional[str] = None
+    ordered: Optional[int] = None
+    stock: Optional[int] = None
+    loss: Optional[int] = None
+    sales: Optional[int] = None
+
+
+class ProductCycleTimelineResponse(BaseModel):
+    product_id: int
+    name: Optional[str] = None
+    custom_id: Optional[str] = None
+    previous2: Optional[ProductCycleBlock] = None
+    previous: Optional[ProductCycleBlock] = None
+    current: Optional[ProductCycleBlock] = None
+
+
+class TicketCycleProductsResponse(BaseModel):
+    ticket_id: int
+    cost_center_id: int
+    products: List[ProductCycleTimelineResponse]
+
+
+class ProductVisitSnapshot(BaseModel):
+    product_id: int
+    name: Optional[str] = None
+    custom_id: Optional[str] = None
+    ticket_id: Optional[int] = None
+    visited_at: Optional[str] = None
+    quantity_ordered: Optional[int] = None
+    stock_quantity: Optional[int] = None
+    loss_quantity: Optional[int] = None
+
+
+class CostCenterProductVisitsResponse(BaseModel):
+    cost_center_id: int
+    visits: List[ProductVisitSnapshot]

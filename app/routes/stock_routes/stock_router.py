@@ -7,8 +7,6 @@ from app.controller.stock_controller.stock_movement_controller import  (
     get_all_movements,
     get_current_stock,
     reset_inventory_stock_controller,
-    register_stock_loss_controller,
-    register_client_sale_controller,
     get_product_entries_controller,
     delete_stock_entry_controller,
     update_stock_entry_controller,
@@ -19,18 +17,17 @@ from app.controller.stock_controller.stock_movement_controller import  (
     get_daily_sales_and_loss_grouped_by_cost_center_controller,
     get_sales_quantity_controller,
     update_client_sale_for_day_controller,
+    get_cycle_analysis_controller,
 )
 from app.models.stockMovement import StockMovement
 from app.schemas.stock_schemas.stock_movement_schema import (
     ClientStockResponse,
     InventoryResponse,
-    StockMovementLost,
     StockMovementRead,
     SupplierPurchaseDTO,
     TotalProductStockResponse,
-    RegisterClientSalesDTO,
 )
-from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead, ClientSalesLossHistoryRead, DailyCostCenterSalesLossGroupRead
+from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, ClientSalesHistoryRead, ClientLossHistoryRead, ClientSalesLossHistoryRead, DailyCostCenterSalesLossGroupRead, CycleAnalysisProductRead
 from app.schemas.stock_schemas.stock_movement_schema import SalesQuantityResponse
 from app.schemas.stock_schemas.stock_movement_schema import ClientSalesUpdateDTO, ClientSalesUpdateResult
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
@@ -140,30 +137,6 @@ def add_stock_bulk(dto: SupplierPurchaseBulkDTO, db: Session = Depends(get_db)):
 # ):
 #     return get_cost_center_stock_controller(cost_center_id, db)
 
-
-@router.post("/stock-movements/losses/", include_in_schema=False)
-@router.post("/stock-movements/losses",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
-def create_loss_record(
-    loss_data: StockMovementLost,
-    db: Session = Depends(get_db)):
-    try:
-        return register_stock_loss_controller(db, loss_data)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e))
-
-@router.post("/stock-movements/sales/", include_in_schema=False)
-@router.post("/stock-movements/sales",response_model=StockMovementRead,status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
-def create_sale_record(
-    sale_data: RegisterClientSalesDTO,
-    db: Session = Depends(get_db)):
-    try:
-        return register_client_sale_controller(db, sale_data)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e))
 
 
 @router.delete("/stock-movements/entries/{movement_id}/", include_in_schema=False)
@@ -482,6 +455,28 @@ def client_sales_loss_history_page():
 </body>
 </html>"""
     return HTMLResponse(content=html)
+
+
+@router.get("/cycle-analysis/", include_in_schema=False)
+@router.get(
+    "/cycle-analysis",
+    response_model=List[CycleAnalysisProductRead],
+    tags=["Stock Movements"],
+    summary="Consolida ciclos de pedidos/estoque/perdas por produto",
+)
+def get_cycle_analysis_route(
+    ticket_id: int = Query(..., ge=1, description="Ticket atual (order=0)"),
+    cycles: int = Query(3, ge=1, le=12, description="Quantidade de ciclos a retornar"),
+    db: Session = Depends(get_db),
+):
+    try:
+        return get_cycle_analysis_controller(
+            db,
+            ticket_id=ticket_id,
+            max_cycles=cycles,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.get("/sales/quantity/", include_in_schema=False)

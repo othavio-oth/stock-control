@@ -2,27 +2,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Dict, Literal, Optional, List
 from datetime import date, datetime
 
-from app.models.stockMovement import MovementType
-
-
 class StockMovementBase(BaseModel):
     product_id: int
     quantity: int
 
-    
-class StockMovementLost(StockMovementBase):
-    cost_center_id: Optional[int] = None
-    movement_type: str = MovementType.CLIENT_LOSS.value  # Valor fixo para perdas
-    created_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True  # Permite conversão de/para ORM
-        
-
-
-class StockMovementSaleCreate(StockMovementBase):
-    cost_center_id: Optional[int] = None
-    
 class SupplierPurchaseDTO(StockMovementBase):
     supplier_id: int
     unit_cost: float
@@ -91,19 +74,13 @@ class ClientStockResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
     
-class RegisterClientSalesDTO(BaseModel):
-    cost_center_id: int
-    product_id: int
-    total_sold: int = Field(gt=0)           # > 0
-    registration_date: date  
-
-
 class ClientSalesHistoryRead(BaseModel):
     id: int
     cost_center_id: int
     product_id: int
     date: date
     sold_quantity: int
+    observed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -115,6 +92,7 @@ class ClientLossHistoryRead(BaseModel):
     date: date
     lost_quantity: int
     reason: Optional[str] = None
+    observed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -172,3 +150,19 @@ class ClientSalesUpdateResult(BaseModel):
     product_id: int
     date: date
     total_sold: int
+
+
+class CycleAnalysisCycleRead(BaseModel):
+    order: int
+    ticket_id: int
+    quantity_ordered: int
+    stock_quantity: Optional[int] = None
+    loss_quantity: Optional[int] = None
+    date: Optional[datetime] = None
+
+
+class CycleAnalysisProductRead(BaseModel):
+    product_id: int
+    name: Optional[str] = None
+    custom_id: Optional[str] = None
+    cycles: List[CycleAnalysisCycleRead]

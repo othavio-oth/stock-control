@@ -1,7 +1,7 @@
 from app.routes.products_routes import category, chain_route, products_price_route, supplier_route, unit_measurement, unit_conversion, products
 from app.routes.users_routes import seller, user, authentication, permissions, roles
 from app.routes.tickets_routes import cost_center, tickets_routes
-from app.routes.stock_routes import client_stock_route, sales_route, stock_router
+from app.routes.stock_routes import client_stock_route, stock_router
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException, Response, Request
 from fastapi.responses import JSONResponse
@@ -82,11 +82,6 @@ app.include_router(
 app.include_router(
     products_price_route.router,
     prefix="/products_adm/prices",
-    dependencies=[Depends(get_current_user)],
-)
-app.include_router(
-    sales_route.router,
-    prefix="/sales",
     dependencies=[Depends(get_current_user)],
 )
 app.include_router(

@@ -1,16 +1,16 @@
 ﻿from collections import defaultdict
 from time import time
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 from sqlalchemy.orm import Session
-from sqlalchemy import case, extract, func
+from sqlalchemy import case, extract, func, or_
 from app.models.tickets import Ticket, TicketProduct
-from app.schemas.stock_schemas.stock_movement_schema import  StockMovementLost, TotalProductStockResponse
+from app.schemas.stock_schemas.stock_movement_schema import  TotalProductStockResponse
 from app.models.stockMovement import ClientLossHistory, ClientSalesHistory, ClientStock, MovementType, InventoryStock
 from app.models.product import Supplier
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_ 
 from datetime import datetime, timedelta
-from app.models.stockMovement import StockMovement
+from app.models.stockMovement import StockMovement, InventoryVisit, InventoryVisitProduct
 from app.models.product import Product
 
 from sqlalchemy.orm import Session
@@ -778,3 +778,143 @@ def update_client_sales_for_day(
 
     db.commit()
     return int(new_total_sold)
+
+
+def get_cycle_analysis_for_cost_center(
+    db: Session,
+    *,
+    ticket_id: int,
+    max_cycles: int,
+) -> List[Dict[str, Any]]:
+    if max_cycles <= 0:
+        return []
+
+    reference_ticket = (
+        db.query(Ticket)
+        .filter(Ticket.id == ticket_id)
+        .first()
+    )
+    if not reference_ticket:
+        raise ValueError("Ticket não encontrado.")
+
+    cost_center_id = reference_ticket.cost_center_id
+
+    tickets = (
+        db.query(Ticket)
+        .filter(
+            Ticket.cost_center_id == cost_center_id,
+            or_(
+                Ticket.order_date < reference_ticket.order_date,
+                and_(
+                    Ticket.order_date == reference_ticket.order_date,
+                    Ticket.id <= reference_ticket.id,
+                ),
+            ),
+        )
+        .order_by(Ticket.order_date.desc(), Ticket.id.desc())
+        .limit(max_cycles)
+        .all()
+    )
+    if not tickets:
+        return []
+
+    ticket_ids = [t.id for t in tickets]
+
+    product_rows = (
+        db.query(
+            TicketProduct.ticket_id,
+            TicketProduct.product_id,
+            TicketProduct.quantity_ordered,
+            Product.name,
+            Product.custom_id,
+        )
+        .join(Product, Product.id == TicketProduct.product_id)
+        .filter(TicketProduct.ticket_id.in_(ticket_ids))
+        .all()
+    )
+
+    if not product_rows:
+        return []
+
+    product_meta: Dict[int, Dict[str, Optional[str]]] = {}
+    ticket_product_map: Dict[int, Dict[int, int]] = defaultdict(dict)
+    for row in product_rows:
+        ticket_product_map[row.ticket_id][row.product_id] = int(row.quantity_ordered or 0)
+        if row.product_id not in product_meta:
+            product_meta[row.product_id] = {
+                "name": row.name,
+                "custom_id": row.custom_id,
+            }
+
+    all_product_ids = list(product_meta.keys())
+    if not all_product_ids:
+        return []
+
+    visit_rows = (
+        db.query(
+            InventoryVisit.ticket_id,
+            InventoryVisitProduct.product_id,
+            InventoryVisitProduct.stock_quantity,
+            InventoryVisitProduct.loss_quantity,
+            InventoryVisit.visited_at,
+        )
+        .join(InventoryVisitProduct, InventoryVisitProduct.inventory_visit_id == InventoryVisit.id)
+        .filter(
+            InventoryVisit.ticket_id.in_(ticket_ids),
+            InventoryVisitProduct.product_id.in_(all_product_ids),
+        )
+        .order_by(InventoryVisit.visited_at.desc(), InventoryVisit.id.desc())
+        .all()
+    )
+
+    visit_map: Dict[int, Dict[int, Dict[str, Any]]] = defaultdict(dict)
+    for row in visit_rows:
+        ticket_map = visit_map[row.ticket_id]
+        if row.product_id not in ticket_map or (
+            ticket_map[row.product_id].get("visited_at") and row.visited_at and row.visited_at > ticket_map[row.product_id]["visited_at"]
+        ):
+            ticket_map[row.product_id] = {
+                "stock_quantity": int(row.stock_quantity or 0),
+                "loss_quantity": int(row.loss_quantity or 0),
+                "visited_at": row.visited_at,
+            }
+
+    product_cycles: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+
+    for idx, ticket in enumerate(tickets):
+        current_order = -idx
+        prev_ticket = tickets[idx + 1] if (idx + 1) < len(tickets) else None
+
+        for product_id, quantity in ticket_product_map.get(ticket.id, {}).items():
+            visit_entry = visit_map.get(ticket.id, {}).get(product_id)
+            has_visit = visit_entry is not None
+            stock_quantity = int(visit_entry.get("stock_quantity") or 0) if has_visit else None
+            loss_quantity = int(visit_entry.get("loss_quantity") or 0) if has_visit else None
+
+            product_cycles[product_id].append(
+                {
+                    "order": current_order,
+                    "ticket_id": ticket.id,
+                    "order_date": ticket.order_date,
+                    "quantity_ordered": int(quantity),
+                    "stock_quantity": stock_quantity,
+                    "loss_quantity": loss_quantity,
+                    "has_visit": has_visit,
+                }
+            )
+
+    formatted: List[Dict[str, Any]] = []
+    for product_id, cycles in product_cycles.items():
+        cycles.sort(key=lambda c: c["order"])
+        meta = product_meta.get(product_id, {})
+        formatted.append(
+            {
+                "product_id": product_id,
+                "name": meta.get("name"),
+                "custom_id": meta.get("custom_id"),
+                "cycles": cycles,
+            }
+        )
+
+    formatted.sort(key=lambda item: item["product_id"])
+    return formatted

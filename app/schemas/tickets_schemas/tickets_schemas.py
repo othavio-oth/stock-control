@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Annotated, List, Optional
 from datetime import date
+from decimal import Decimal
 
 from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitResponse
 
@@ -43,8 +44,8 @@ class TicketBase(BaseModel):
 
 class TicketProductUpdateDTO(BaseModel):
     quantity_ordered: Optional[Annotated[int, Field(strict=True, ge=0)]] = None
-    unit_price: Optional[Annotated[float, Field(max_digits=10, decimal_places=2)]] = None
-    entry_price: Optional[Annotated[float, Field(max_digits=10, decimal_places=2)]] = None
+    unit_price: Optional[Annotated[Decimal, Field(max_digits=10, decimal_places=2)]] = None
+    entry_price: Optional[Annotated[Decimal, Field(max_digits=10, decimal_places=2)]] = None
 
     def ensure_not_empty(self):
         if all(v is None for v in self.model_dump().values()):

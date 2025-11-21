@@ -50,6 +50,8 @@ class ClientStock(Base):
     cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False, default=0)
+    last_observed_at = Column(DateTime(timezone=True), nullable=True)
+    last_zeroed_at = Column(DateTime(timezone=True), nullable=True)
 
     product = relationship("Product")
     cost_center = relationship("CostCenter")
@@ -62,6 +64,7 @@ class ClientSalesHistory(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     date = Column(Date, nullable=False)
     sold_quantity = Column(Integer, nullable=False)
+    observed_at = Column(DateTime(timezone=True), nullable=True)
 
     product = relationship("Product")
     cost_center = relationship("CostCenter")
@@ -102,6 +105,7 @@ class ClientLossHistory(Base):
     date = Column(Date, nullable=False)
     lost_quantity = Column(Integer, nullable=False)
     reason = Column(String, nullable=True)
+    observed_at = Column(DateTime(timezone=True), nullable=True)
 
     product = relationship("Product")
     cost_center = relationship("CostCenter")

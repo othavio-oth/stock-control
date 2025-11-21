@@ -1,5 +1,5 @@
 from app.models.tickets import Ticket
-from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitCreate
+from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitCreate, InventoryVisitUpdate
 from . import *
 
 def list_tickets(page,db):
@@ -48,5 +48,21 @@ def process_sales_controller(ticket: Ticket, db: Session):
 def register_inventory_visit_controller(ticket_id: int, visit_data: InventoryVisitCreate, db: Session, recorded_by: int | None):
     return TicketService.register_inventory_visit(db, ticket_id, visit_data, recorded_by)
 
-def list_inventory_visits_controller(ticket_id: int, db: Session):
-    return TicketService.list_inventory_visits(db, ticket_id)
+def update_inventory_visit_controller(ticket_id: int, visit_id: int, visit_data: InventoryVisitUpdate, db: Session, user_id: int | None):
+    return TicketService.update_inventory_visit(db, ticket_id, visit_id, visit_data, user_id)
+
+def list_inventory_visits_controller(ticket_id: int, db: Session, user_id: int | None):
+    return TicketService.list_inventory_visits(db, ticket_id, user_id)
+
+def get_ticket_cycle_products_controller(ticket_id: int, db: Session):
+    return TicketService.get_ticket_cycle_products(db, ticket_id)
+
+def get_cost_center_product_visits_controller(cost_center_id: int, product_ids: list[int] | None, db: Session):
+    return TicketService.get_cost_center_product_visits(
+        db,
+        cost_center_id=cost_center_id,
+        product_ids=product_ids,
+    )
+
+def get_previous_approved_ticket_controller(ticket_id: int, db: Session):
+    return TicketService.get_previous_approved_ticket_service(db, ticket_id)

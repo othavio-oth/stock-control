@@ -1,12 +1,9 @@
-from typing import Iterable, List, Dict, Any, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 from sqlalchemy.orm import Session
 from sqlalchemy import case, func
-from app.models.stockMovement import ClientStock
 from sqlalchemy.exc import IntegrityError
 
-
-from typing import Any, Dict, Iterable, List, Optional
-from sqlalchemy.orm import Session
 from app.models.stockMovement import ClientStock
 
 def get_client_stock_by_cost_center(
@@ -88,3 +85,86 @@ def update_client_stock_quantity(
         raise
 
     return {"product_id": product_id, "quantity": row.quantity}
+
+
+def sync_client_stock_from_snapshot(
+    db: Session,
+    *,
+    cost_center_id: int,
+    product_quantities: Iterable[dict],
+    observed_at: Optional[datetime],
+) -> None:
+    """
+    Ajusta client_stock para refletir as quantidades observadas em uma visita
+    de inventário (InventoryVisit).
+    """
+    qty_map: Dict[int, int] = {}
+    for entry in product_quantities:
+        try:
+            pid = int(entry["product_id"])
+            qty = int(entry.get("stock_quantity", 0) or 0)
+        except (KeyError, TypeError, ValueError):
+            continue
+        qty_map[pid] = qty
+
+    if not qty_map:
+        return
+
+    existing_rows = (
+        db.query(ClientStock)
+        .filter(
+            ClientStock.cost_center_id == cost_center_id,
+            ClientStock.product_id.in_(list(qty_map.keys())),
+        )
+        .with_for_update(of=ClientStock)
+        .all()
+    )
+    existing_map = {row.product_id: row for row in existing_rows}
+
+    timestamp = observed_at or datetime.now(timezone.utc)
+
+    for pid, qty in qty_map.items():
+        row = existing_map.get(pid)
+        if row:
+            row.quantity = qty
+            row.last_observed_at = timestamp
+            row.last_zeroed_at = timestamp if qty == 0 else None
+        else:
+            db.add(
+                ClientStock(
+                    cost_center_id=cost_center_id,
+                    product_id=pid,
+                    quantity=qty,
+                    last_observed_at=timestamp,
+                    last_zeroed_at=(timestamp if qty == 0 else None),
+                )
+            )
+
+
+def zero_absent_client_stock_entries(
+    db: Session,
+    *,
+    cost_center_id: int,
+    observed_product_ids: Sequence[int] | None,
+    zeroed_at: Optional[datetime],
+) -> None:
+    """
+    Define quantity=0 para todos os produtos do cost center que não foram
+    observados na visita e registra o momento do zeramento.
+    """
+    normalized_ids = sorted({int(pid) for pid in observed_product_ids or [] if pid is not None})
+
+    q = (
+        db.query(ClientStock)
+        .filter(ClientStock.cost_center_id == cost_center_id)
+    )
+    if normalized_ids:
+        q = q.filter(~ClientStock.product_id.in_(normalized_ids))
+
+    rows = q.with_for_update(of=ClientStock).all()
+    timestamp = zeroed_at or datetime.now(timezone.utc)
+
+    for row in rows:
+        row.quantity = 0
+        row.last_observed_at = timestamp
+        row.last_zeroed_at = timestamp
