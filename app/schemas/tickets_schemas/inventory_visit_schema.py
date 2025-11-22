@@ -146,6 +146,7 @@ class TicketVisitSummaryItem(BaseModel):
     stock_prev: Optional[int] = None
     order_last: Optional[int] = None
     order_prev: Optional[int] = None
+    order_prev_date: Optional[str] = None
 
 
 class TicketVisitSummaryResponse(BaseModel):

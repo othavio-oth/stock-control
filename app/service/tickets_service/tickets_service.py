@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import Optional, List
 import re
 from fastapi import HTTPException
@@ -414,9 +414,27 @@ class TicketService:
         visits = list_inventory_visits_by_ticket(db, ticket_id)
 
         # Evita retornar visitas registradas depois da criação do ticket
-        if getattr(ticket, "order_date", None) is not None:
+        cutoff = None
+        if getattr(ticket, "order_date", None):
             cutoff = datetime.combine(ticket.order_date, datetime.max.time())
-            visits = [v for v in visits if v.visited_at and v.visited_at <= cutoff]
+        elif getattr(ticket, "approved_at", None):
+            cutoff = ticket.approved_at
+        elif getattr(ticket, "created_at", None):
+            cutoff = ticket.created_at
+
+        if cutoff:
+            def _to_utc_naive(dt):
+                if not dt:
+                    return None
+                if dt.tzinfo:
+                    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+                return dt
+
+            cutoff_norm = _to_utc_naive(cutoff)
+            visits = [
+                v for v in visits
+                if v.visited_at and _to_utc_naive(v.visited_at) and _to_utc_naive(v.visited_at) <= cutoff_norm
+            ]
 
         if TicketService._user_is_admin(db, current_user_id):
             return visits
@@ -578,7 +596,7 @@ class TicketService:
             if ticket_created_at:
                 cutoff = ticket_created_at
             elif getattr(ticket, "order_date", None) is not None:
-                cutoff = datetime.combine(ticket.order_date, datetime.max.time())
+                cutoff = datetime.combine(ticket.order_date, datetime.min.time())
 
             if cutoff is None:
                 raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Data de referencia do ticket nao encontrada.")
@@ -647,41 +665,91 @@ class TicketService:
 
     @staticmethod
     def get_ticket_visit_summary(db: Session, ticket_id: int) -> TicketVisitSummaryResponse:
+        ticket = get_ticket_by_id(db, ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Ticket nao encontrado.")
+
+        cutoff_dt = None
+        if getattr(ticket, "order_date", None):
+            cutoff_dt = datetime.combine(ticket.order_date, datetime.max.time())
+        elif getattr(ticket, "approved_at", None):
+            cutoff_dt = ticket.approved_at
+        elif getattr(ticket, "created_at", None):
+            cutoff_dt = ticket.created_at
+        else:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Data de referencia do ticket nao encontrada.")
+
+        # Normaliza cutoff para evitar comparações inconsistentes de timezone
+        if cutoff_dt:
+            if cutoff_dt.tzinfo is None:
+                cutoff_dt = cutoff_dt.replace(tzinfo=timezone.utc)
+            else:
+                cutoff_dt = cutoff_dt.astimezone(timezone.utc)
+
         rows = db.execute(
             text(
                 """
-            SELECT
-                product_id,
-                loss_last,
-                loss_prev,
-                sales_last,
-                sales_prev,
-                stock_last,
-                stock_prev,
-                order_last,
-                order_prev
-            FROM ticket_product_visit_summary
-            WHERE ticket_id = :ticket_id
-            ORDER BY product_id
+                WITH ranked AS (
+                    SELECT
+                        ivp.product_id,
+                        iv.visited_at,
+                        ivp.loss_quantity,
+                        ivp.sales_quantity,
+                        ivp.stock_quantity,
+                        tp.quantity_ordered,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY ivp.product_id
+                            ORDER BY iv.visited_at DESC, iv.id DESC
+                        ) AS rn
+                    FROM inventory_visits iv
+                    JOIN inventory_visit_products ivp ON ivp.inventory_visit_id = iv.id
+                    LEFT JOIN ticket_products tp
+                        ON tp.ticket_id = iv.ticket_id
+                        AND tp.product_id = ivp.product_id
+                    WHERE iv.cost_center_id = :cost_center_id
+                      AND iv.visited_at < :cutoff
+                )
+                SELECT
+                    product_id,
+                    MAX(CASE WHEN rn = 1 THEN loss_quantity END)  AS loss_last,
+                    MAX(CASE WHEN rn = 2 THEN loss_quantity END)  AS loss_prev,
+                    MAX(CASE WHEN rn = 1 THEN sales_quantity END) AS sales_last,
+                    MAX(CASE WHEN rn = 2 THEN sales_quantity END) AS sales_prev,
+                    MAX(CASE WHEN rn = 1 THEN stock_quantity END) AS stock_last,
+                    MAX(CASE WHEN rn = 2 THEN stock_quantity END) AS stock_prev,
+                    MAX(CASE WHEN rn = 1 THEN quantity_ordered END) AS order_last,
+                    MAX(CASE WHEN rn = 2 THEN quantity_ordered END) AS order_prev,
+                    MAX(CASE WHEN rn = 2 THEN visited_at END) AS order_prev_date
+                FROM ranked
+                WHERE rn <= 2
+                GROUP BY product_id
+                ORDER BY product_id
                 """
             ),
-            {"ticket_id": ticket_id},
+            {
+                "ticket_id": ticket_id,
+                "cost_center_id": ticket.cost_center_id,
+                "cutoff": cutoff_dt,
+            },
         ).fetchall()
 
-        items = [
-            TicketVisitSummaryItem(
-                product_id=row.product_id,
-                loss_last=row.loss_last,
-                loss_prev=row.loss_prev,
-                sales_last=row.sales_last,
-                sales_prev=row.sales_prev,
-                stock_last=row.stock_last,
-                stock_prev=row.stock_prev,
-                order_last=row.order_last,
-                order_prev=row.order_prev,
+        items = []
+        for row in rows:
+            items.append(
+                TicketVisitSummaryItem(
+                    product_id=row.product_id,
+                    loss_last=row.loss_last,
+                    loss_prev=row.loss_prev,
+                    sales_last=row.sales_last,
+                    sales_prev=row.sales_prev,
+                    stock_last=row.stock_last,
+                    stock_prev=row.stock_prev,
+                    order_last=row.order_last,
+                    order_prev=row.order_prev,
+                    order_prev_date=TicketService._date_to_str(row.order_prev_date),
+                )
             )
-            for row in rows
-        ]
+
         return TicketVisitSummaryResponse(ticket_id=ticket_id, items=items)
 
     @staticmethod
