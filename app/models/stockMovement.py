@@ -151,3 +151,11 @@ class InventoryVisitProduct(Base):
 
     visit = relationship("InventoryVisit", back_populates="products")
     product = relationship("Product")
+
+    @property
+    def next_qty(self):
+        return self.next_quantity
+
+    @next_qty.setter
+    def next_qty(self, value):
+        self.next_quantity = value

@@ -144,8 +144,10 @@ class TicketVisitSummaryItem(BaseModel):
     sales_prev: Optional[int] = None
     stock_last: Optional[int] = None
     stock_prev: Optional[int] = None
+    next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
     order_last: Optional[int] = None
     order_prev: Optional[int] = None
+    order_last_date: Optional[str] = None
     order_prev_date: Optional[str] = None
 
 
@@ -164,3 +166,20 @@ class LastVisitNextQtyResponse(BaseModel):
     visit_id: Optional[int] = None
     visited_at: Optional[str] = None
     products: List[LastVisitProductNextQty]
+
+
+class ReservationTicketItem(BaseModel):
+    ticket_id: int
+    cost_center_id: int
+    quantity: int
+
+
+class ReservationItem(BaseModel):
+    product_id: int
+    reserved_qty: int
+    tickets: List[ReservationTicketItem]
+
+
+class ReservationsResponse(BaseModel):
+    generated_at: datetime
+    items: List[ReservationItem]

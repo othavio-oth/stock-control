@@ -80,3 +80,6 @@ def get_ticket_visit_summary_controller(ticket_id: int, db: Session):
 
 def get_cost_center_last_visit_next_qty_controller(cost_center_id: int, db: Session):
     return TicketService.get_cost_center_last_visit_next_qty(db, cost_center_id)
+
+def get_open_reservations_controller(product_ids: list[int] | None, db: Session):
+    return TicketService.get_open_reservations(db, product_ids)

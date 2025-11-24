@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from typing import List, Optional
 from fastapi import Query
 from app.controller.tickets_controller.tickets_controller import (
@@ -14,6 +15,7 @@ from app.controller.tickets_controller.tickets_controller import (
     get_cost_center_latest_visits_controller,
     get_ticket_visit_summary_controller,
     get_cost_center_last_visit_next_qty_controller,
+    get_open_reservations_controller,
 )
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from app.schemas.products_schemas.product_price_schema import UnitPricePayload
@@ -29,6 +31,7 @@ from app.schemas.tickets_schemas.inventory_visit_schema import (
     CostCenterLatestVisitsResponse,
     TicketVisitSummaryResponse,
     LastVisitNextQtyResponse,
+    ReservationsResponse,
 )
 from app.service.tickets_service.ticket_recommendations_service import get_daily_sales_avg_for_last_cycles, get_daily_sales_avg_for_ticket
 from app.service.tickets_service.tickets_service import TicketService
@@ -36,6 +39,7 @@ from . import *
 from app.middleware.auth_handler import get_current_user
 
 router = APIRouter(redirect_slashes=False)
+logger = logging.getLogger(__name__)
 
 @router.get("/tickets", include_in_schema=False)
 @router.get("/tickets/", response_model=AllTicketsResponse, tags=["Tickets"])
@@ -214,6 +218,12 @@ def register_inventory_visit_route(
     user: dict = Depends(get_current_user),
 ):
     recorded_by = user.get("id") if isinstance(user, dict) else None
+    logger.info(
+        "POST /tickets/%s/visits payload=%s recorded_by=%s",
+        ticket_id,
+        visit_data.model_dump(),
+        recorded_by,
+    )
     return register_inventory_visit_controller(ticket_id, visit_data, db, recorded_by)
 
 @router.put("/tickets/{ticket_id}/visits/{visit_id}", include_in_schema=False)
@@ -282,6 +292,18 @@ def get_cost_center_last_visit_next_qty_route(
     db: Session = Depends(get_db),
 ):
     return get_cost_center_last_visit_next_qty_controller(cost_center_id, db)
+
+@router.get("/open/reservations", include_in_schema=False)
+@router.get(
+    "/open/reservations/",
+    response_model=ReservationsResponse,
+    tags=["Tickets"],
+)
+def get_open_reservations_route(
+    product_ids: Optional[List[int]] = Query(None),
+    db: Session = Depends(get_db),
+):
+    return get_open_reservations_controller(product_ids, db)
 
 @router.get("/cost-centers/{cost_center_id}/visits/latest", include_in_schema=False)
 @router.get(

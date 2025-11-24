@@ -60,6 +60,9 @@ from app.schemas.tickets_schemas.inventory_visit_schema import (
     TicketVisitSummaryItem,
     LastVisitNextQtyResponse,
     LastVisitProductNextQty,
+    ReservationsResponse,
+    ReservationItem,
+    ReservationTicketItem,
 )
 from fastapi import HTTPException
 from starlette.status import HTTP_404_NOT_FOUND
@@ -696,6 +699,7 @@ class TicketService:
                         ivp.loss_quantity,
                         ivp.sales_quantity,
                         ivp.stock_quantity,
+                        ivp.next_quantity,
                         tp.quantity_ordered,
                         ROW_NUMBER() OVER (
                             PARTITION BY ivp.product_id
@@ -717,8 +721,10 @@ class TicketService:
                     MAX(CASE WHEN rn = 2 THEN sales_quantity END) AS sales_prev,
                     MAX(CASE WHEN rn = 1 THEN stock_quantity END) AS stock_last,
                     MAX(CASE WHEN rn = 2 THEN stock_quantity END) AS stock_prev,
+                    MAX(CASE WHEN rn = 1 THEN next_quantity END) AS next_qty,
                     MAX(CASE WHEN rn = 1 THEN quantity_ordered END) AS order_last,
                     MAX(CASE WHEN rn = 2 THEN quantity_ordered END) AS order_prev,
+                    MAX(CASE WHEN rn = 1 THEN visited_at END) AS order_last_date,
                     MAX(CASE WHEN rn = 2 THEN visited_at END) AS order_prev_date
                 FROM ranked
                 WHERE rn <= 2
@@ -744,8 +750,10 @@ class TicketService:
                     sales_prev=row.sales_prev,
                     stock_last=row.stock_last,
                     stock_prev=row.stock_prev,
+                    next_qty=row.next_qty,
                     order_last=row.order_last,
                     order_prev=row.order_prev,
+                    order_last_date=TicketService._date_to_str(row.order_last_date),
                     order_prev_date=TicketService._date_to_str(row.order_prev_date),
                 )
             )
@@ -785,6 +793,62 @@ class TicketService:
             visit_id=visit.id,
             visited_at=TicketService._date_to_str(visit.visited_at),
             products=products,
+        )
+
+    @staticmethod
+    def get_open_reservations(
+        db: Session,
+        product_ids: Optional[List[int]] = None,
+    ) -> ReservationsResponse:
+        statuses = ["open", "pending"]
+
+        base_query = (
+            db.query(
+                TicketProduct.product_id.label("product_id"),
+                TicketProduct.ticket_id.label("ticket_id"),
+                Ticket.cost_center_id.label("cost_center_id"),
+                TicketProduct.quantity_ordered.label("quantity"),
+            )
+            .join(Ticket, TicketProduct.ticket_id == Ticket.id)
+            .filter(Ticket.status.in_(statuses))
+        )
+
+        if product_ids:
+            normalized_ids = sorted({int(pid) for pid in product_ids})
+            if normalized_ids:
+                base_query = base_query.filter(TicketProduct.product_id.in_(normalized_ids))
+
+        detail_rows = base_query.all()
+
+        if not detail_rows:
+            return ReservationsResponse(generated_at=datetime.utcnow(), items=[])
+
+        agg: dict[int, dict] = {}
+        for row in detail_rows:
+            pid = row.product_id
+            qty = int(row.quantity or 0)
+            entry = agg.setdefault(pid, {"reserved_qty": 0, "tickets": []})
+            entry["reserved_qty"] += qty
+            entry["tickets"].append(
+                ReservationTicketItem(
+                    ticket_id=row.ticket_id,
+                    cost_center_id=row.cost_center_id,
+                    quantity=qty,
+                )
+            )
+
+        items = [
+            ReservationItem(
+                product_id=pid,
+                reserved_qty=data["reserved_qty"],
+                tickets=data["tickets"],
+            )
+            for pid, data in sorted(agg.items())
+        ]
+
+        return ReservationsResponse(
+            generated_at=datetime.utcnow(),
+            items=items,
         )
 
 
