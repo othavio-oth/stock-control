@@ -1,12 +1,12 @@
 from typing import List, Optional
 
-from pytest import Session
+from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 
 from app.models.stockMovement import ClientLossHistory, ClientSalesHistory, InventoryVisit, InventoryVisitProduct
 from app.models.tickets import TicketProduct
 from app.schemas.tickets_schemas.inventory_visit_schema import ProductCycleBlock
-from app.service.tickets_service.tickets_service import TicketService
+from app.service.utils.date_utils import date_to_str
 
 
 def build_cycle_block(visit_row) -> Optional[ProductCycleBlock]:
@@ -27,7 +27,7 @@ def build_cycle_block(visit_row) -> Optional[ProductCycleBlock]:
 
         return ProductCycleBlock(
             ticket_id=getattr(visit_row, "ticket_id", None),
-            date=TicketService._date_to_str(getattr(visit_row, "visited_at", None)),
+            date=date_to_str(getattr(visit_row, "visited_at", None)),
             ordered=(
                 int(visit_row.quantity_ordered)
                 if getattr(visit_row, "quantity_ordered", None) is not None

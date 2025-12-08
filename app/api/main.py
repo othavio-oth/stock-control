@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.middleware.permission import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
-from app.middleware.error_notifier import ErrorNotifierMiddleware
+# from app.middleware.error_notifier import ErrorNotifierMiddleware
 import os
 import logging
 
@@ -20,7 +20,7 @@ app.router.redirect_slashes = False
 
 
    
-app.add_middleware(ErrorNotifierMiddleware)
+# app.add_middleware(ErrorNotifierMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://strategy-web-inventory.vercel.app", "https://strategy-web-inventory-git-master-othaviooths-projects.vercel.app", "https://strategy-web-inventory-git-preview-othaviooths-projects.vercel.app", "http://localhost:3000"],
@@ -121,7 +121,7 @@ def ping():
 
 
 # Debug/test-only routes (enabled with ENABLE_DEBUG_ROUTES=true)
-if os.getenv("ENABLE_DEBUG_ROUTES", "false").lower() == "true":
+if os.getenv("ENABLE_DEBUG_ROUTES", "true").lower() == "true":
     @app.get("/_debug/error")
     def debug_error():
         raise RuntimeError("Forced error for testing ErrorNotifierMiddleware")

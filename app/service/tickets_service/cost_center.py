@@ -1,6 +1,5 @@
 from app.repository.tickets.cost_center_repository import create_cost_center, search_cost_centers_by_term, update_cost_center, get_all_cost_centers, get_cost_center_by_id, delete_cost_center, get_tickets_by_cost_center
 from app.models.tickets import CostCenter, TicketProduct
-from app.repository.tickets.tickets_repository import Ticket
 
 class CostCenterService:
     @staticmethod

@@ -1,57 +1,16 @@
-from datetime import date, datetime
-from typing import Iterable, Optional
+from datetime import date
+from typing import  Optional
 
 from fastapi import HTTPException
 from app.models.stockMovement import (
-    StockMovement,
     InventoryVisit,
     InventoryVisitProduct,
-    ClientSalesHistory,
-    ClientLossHistory,
+
 )
-from app.repository.stock.client_stock_repository import (
-    sync_client_stock_from_snapshot,
-    zero_absent_client_stock_entries,
-)
-from app.schemas.stock_schemas.stock_movement_schema import StockMovementRead
-from app.schemas.tickets_schemas.tickets_schemas import TicketProductBase
+
 from . import *
-from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import desc, or_, and_, func
-
-def search_tickets_any( search_term: str,page:int,db: Session):
-    page_size = 20
-    offset = (page - 1) * page_size
-    base_query = (
-        db.query(Ticket)
-          .options(
-              joinedload(Ticket.products).joinedload(TicketProduct.product),
-              joinedload(Ticket.inventory_visits)
-              .joinedload(InventoryVisit.products)
-              .joinedload(InventoryVisitProduct.product),
-              joinedload(Ticket.inventory_visits).joinedload(InventoryVisit.cost_center),
-          )  # <-- aqui
-          .join(CostCenter)
-          .filter(
-              or_(
-                  Ticket.id == int(search_term) if search_term.isdigit() else False,
-                  Ticket.name.ilike(f"%{search_term}%"),
-                  CostCenter.name.ilike(f"%{search_term}%"),
-              )
-          )
-    )
-    total = base_query.count()
-    total_pages = (total + page_size - 1) // page_size
-
-    tickets = base_query.offset(offset).limit(page_size).all()
-    return {
-    "items": tickets,
-    "total": total,
-    "page": page,
-    "page_size": page_size,
-    "total_pages": total_pages
-    }
+from sqlalchemy import desc, or_, and_
 
 
 def get_all_tickets(page:int,db: Session):
@@ -215,53 +174,12 @@ def delete_ticket(db, ticket_id):
 def get_products_by_ticket(db, ticket_id):
     return db.query(TicketProduct).filter(TicketProduct.ticket_id == ticket_id).order_by(TicketProduct.id).all()
 
-def add_product_to_ticket(db, product_data):
-    product = (
-        db.query(Product)
-        .filter(
-            Product.id == product_data.product_id,
-            Product.is_active == True,
-            Product.deleted_at.is_(None),
-        )
-        .first()
-    )
-    ticket_product = TicketProduct(
-    **product_data.dict(),
-)
-    db.add(ticket_product)
-    db.commit()
-    db.refresh(ticket_product)
-    return ticket_product
 
-def get_products_ticket_by_id(db, ticket_id):
-    return [product.product_id for product in db.query(TicketProduct).filter(TicketProduct.ticket_id == ticket_id).order_by(TicketProduct.id).all()]
 
-def get_ticket_products(db):
-    return db.query(TicketProduct).order_by(TicketProduct.id).all()
 
-def remove_product_from_ticket(db, ticket_product_id):
-    ticket_product = db.query(TicketProduct).filter(TicketProduct.id == ticket_product_id).first()
-    if ticket_product:
-        db.delete(ticket_product)
-        db.commit()
-    return ticket_product
 
-def get_ticket_products_by_cost_center(db: Session, cost_center_id: int):
-    return (
-        db.query(TicketProduct)
-        .join(Ticket)
-        .filter(Ticket.cost_center_id == cost_center_id)
-        .all()
-    )
-    
-def update_ticket_product_unit_price(db: Session, ticket_product_id: int, unit_price: float) -> TicketProduct | None:
-    tp = db.query(TicketProduct).filter(TicketProduct.id == ticket_product_id).first()
-    if not tp:
-        return None
-    tp.unit_price = unit_price
-    db.commit()
-    db.refresh(tp)
-    return tp
+
+
 
 def get_last_approved_ticket_id_for_cc_product(
     db: Session, cost_center_id: int, product_id: Optional[int]
@@ -299,293 +217,15 @@ def get_last_approved_ticket_id_for_cc_product(
         ).first()
         return q[0] if q else None
 
-def update_ticket_product(db: Session, ticket_id: int, product_id: int, updates: dict):
-    tp = (
-        db.query(TicketProduct)
-        .filter(TicketProduct.ticket_id == ticket_id, TicketProduct.product_id == product_id)
-        .first()
-    )
-    if not tp:
-        raise HTTPException(status_code=404, detail="Produto não encontrado no ticket")
-
-    for key, value in updates.items():
-        if hasattr(tp, key):
-            setattr(tp, key, value)
-
-    db.commit()
-    db.refresh(tp)
-    return tp
 
 
 
 
 
-def create_inventory_visit_record(
-    db: Session,
-    *,
-    ticket: Ticket,
-    recorded_by: Optional[int],
-    visited_at: datetime,
-    total_stock_quantity: Optional[int],
-    notes: Optional[str],
-    product_entries: Iterable[dict],
-) -> InventoryVisit:
-    visit = InventoryVisit(
-        cost_center_id=ticket.cost_center_id,
-        ticket_id=ticket.id,
-        recorded_by=recorded_by,
-        visited_at=visited_at,
-        total_stock_quantity=total_stock_quantity,
-        notes=notes,
-    )
-    db.add(visit)
-    db.flush()
-
-    total_from_products = 0
-    product_ids: set[int] = set()
-    for entry in product_entries:
-        try:
-            product_id = int(entry["product_id"])
-        except (KeyError, TypeError, ValueError):
-            raise ValueError("product_entries deve conter product_id válido")
-        product_ids.add(product_id)
-        stock_qty = int(entry.get("stock_quantity", 0))
-        next_qty = entry.get("next_qty", entry.get("nextQty"))
-        next_qty_int = int(next_qty) if next_qty is not None else None
-        shelf_price = entry.get("shelf_price", entry.get("shelfPrice"))
-        product_visit = InventoryVisitProduct(
-            inventory_visit_id=visit.id,
-            product_id=product_id,
-            stock_quantity=stock_qty,
-            sales_quantity=int(entry.get("sales_quantity", 0) or 0),
-            loss_quantity=int(entry.get("loss_quantity", 0) or 0),
-            next_quantity=next_qty_int,
-            shelf_price=shelf_price,
-        )
-        total_from_products += stock_qty
-        db.add(product_visit)
-
-    if total_stock_quantity is None:
-        visit.total_stock_quantity = total_from_products
-
-    sync_client_stock_from_snapshot(
-        db,
-        cost_center_id=ticket.cost_center_id,
-        product_quantities=product_entries,
-        observed_at=visit.visited_at,
-    )
-    db.flush()
-
-    zero_absent_client_stock_entries(
-        db,
-        cost_center_id=ticket.cost_center_id,
-        observed_product_ids=product_ids,
-        zeroed_at=visit.visited_at,
-    )
-
-    visit_date = visit.visited_at.date()
-    _recalculate_daily_visit_history(
-        db,
-        cost_center_id=ticket.cost_center_id,
-        date_product_map={visit_date: product_ids},
-    )
-
-    db.commit()
-    db.refresh(visit)
-    return visit
 
 
-def update_inventory_visit_record(
-    db: Session,
-    *,
-    ticket: Ticket,
-    visit_id: int,
-    recorded_by: Optional[int],
-    visited_at: Optional[datetime],
-    total_stock_quantity: Optional[int],
-    notes: Optional[str],
-    product_entries: Optional[Iterable[dict]],
-    editor_user_id: Optional[int],
-    allow_admin: bool,
-) -> InventoryVisit:
-    visit = (
-        db.query(InventoryVisit)
-        .options(joinedload(InventoryVisit.products))
-        .filter(InventoryVisit.id == visit_id, InventoryVisit.ticket_id == ticket.id)
-        .first()
-    )
-    if not visit:
-        raise HTTPException(status_code=404, detail="Visita não encontrada para este ticket.")
-
-    if not allow_admin:
-        if not editor_user_id or visit.recorded_by != editor_user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="Você só pode visualizar ou editar visitas registradas por você.",
-            )
-
-    previous_visit_date = visit.visited_at.date()
-    previous_product_ids = {p.product_id for p in visit.products}
-
-    if visited_at is not None:
-        visit.visited_at = visited_at
-    if notes is not None:
-        visit.notes = notes
-    if recorded_by is not None:
-        visit.recorded_by = recorded_by
-
-    recalculated_total: Optional[int] = None
-    new_product_ids: set[int] = set()
-    if product_entries is not None:
-        visit.products.clear()
-        db.flush()
-        total_from_products = 0
-        for entry in product_entries:
-            stock_qty = int(entry.get("stock_quantity", 0) or 0)
-            try:
-                product_id = int(entry["product_id"])
-            except (KeyError, TypeError, ValueError):
-                raise ValueError("product_entries deve conter product_id válido")
-            next_qty = entry.get("next_qty", entry.get("nextQty"))
-            next_qty_int = int(next_qty) if next_qty is not None else None
-            shelf_price = entry.get("shelf_price", entry.get("shelfPrice"))
-            product_visit = InventoryVisitProduct(
-                inventory_visit_id=visit.id,
-                product_id=product_id,
-                stock_quantity=stock_qty,
-                sales_quantity=int(entry.get("sales_quantity", 0) or 0),
-                loss_quantity=int(entry.get("loss_quantity", 0) or 0),
-                next_quantity=next_qty_int,
-                shelf_price=shelf_price,
-            )
-            total_from_products += stock_qty
-            visit.products.append(product_visit)
-            new_product_ids.add(product_id)
-        recalculated_total = total_from_products
-
-        sync_client_stock_from_snapshot(
-            db,
-            cost_center_id=ticket.cost_center_id,
-            product_quantities=product_entries,
-            observed_at=visit.visited_at,
-        )
-        db.flush()
-    else:
-        new_product_ids = {p.product_id for p in visit.products}
-
-    zero_absent_client_stock_entries(
-        db,
-        cost_center_id=ticket.cost_center_id,
-        observed_product_ids=new_product_ids,
-        zeroed_at=visit.visited_at,
-    )
-
-    if total_stock_quantity is not None:
-        visit.total_stock_quantity = total_stock_quantity
-    elif recalculated_total is not None:
-        visit.total_stock_quantity = recalculated_total
-
-    current_visit_date = visit.visited_at.date()
-    date_product_map: dict[date, set[int]] = {}
-    if previous_product_ids:
-        date_product_map.setdefault(previous_visit_date, set()).update(previous_product_ids)
-    if new_product_ids:
-        date_product_map.setdefault(current_visit_date, set()).update(new_product_ids)
-    elif current_visit_date not in date_product_map:
-        date_product_map[current_visit_date] = set()
-
-    _recalculate_daily_visit_history(
-        db,
-        cost_center_id=ticket.cost_center_id,
-        date_product_map=date_product_map,
-    )
-
-    db.commit()
-    db.refresh(visit)
-    return visit
 
 
-def list_inventory_visits_by_ticket(db: Session, ticket_id: int) -> list[InventoryVisit]:
-    return (
-        db.query(InventoryVisit)
-        .options(
-            joinedload(InventoryVisit.products).joinedload(InventoryVisitProduct.product),
-            joinedload(InventoryVisit.cost_center),
-        )
-        .filter(InventoryVisit.ticket_id == ticket_id)
-        .order_by(InventoryVisit.visited_at.desc())
-        .all()
-    )
-
-
-def list_all_inventory_visits_paginated(
-    db: Session,
-    *,
-    page: int,
-    page_size: int,
-) -> dict:
-    offset = (page - 1) * page_size
-
-    query = (
-        db.query(InventoryVisit)
-        .options(
-            joinedload(InventoryVisit.products).joinedload(InventoryVisitProduct.product),
-            joinedload(InventoryVisit.cost_center),
-        )
-        .order_by(InventoryVisit.visited_at.desc(), InventoryVisit.id.desc())
-    )
-
-    total = query.count()
-    visits = query.offset(offset).limit(page_size).all()
-    total_pages = (total + page_size - 1) // page_size if page_size else 0
-
-    return {
-        "items": visits,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages,
-    }
-
-
-def get_previous_inventory_snapshot(
-    db: Session,
-    *,
-    cost_center_id: int,
-    product_id: int,
-    before_visit_id: int,
-    before_visited_at: Optional[datetime],
-):
-    query = (
-        db.query(
-            InventoryVisitProduct.stock_quantity.label("previous_quantity"),
-            InventoryVisit.visited_at.label("previous_visited_at"),
-        )
-        .join(InventoryVisit, InventoryVisit.id == InventoryVisitProduct.inventory_visit_id)
-        .filter(
-            InventoryVisit.cost_center_id == cost_center_id,
-            InventoryVisitProduct.product_id == product_id,
-        )
-    )
-
-    if before_visited_at:
-        query = query.filter(
-            or_(
-                InventoryVisit.visited_at < before_visited_at,
-                and_(
-                    InventoryVisit.visited_at == before_visited_at,
-                    InventoryVisit.id < before_visit_id,
-                ),
-            )
-        )
-    else:
-        query = query.filter(InventoryVisit.id < before_visit_id)
-
-    return (
-        query.order_by(InventoryVisit.visited_at.desc(), InventoryVisit.id.desc())
-        .limit(1)
-        .first()
-    )
 
 def get_last_approved_ticket_by_cost_center(db: Session, cost_center_id: int):
     return (
@@ -661,113 +301,6 @@ def create_next_cycle_ticket(db: Session, base_ticket: Ticket, name: str | None 
     return new_ticket
 
 
-def _recalculate_daily_visit_history(
-    db: Session,
-    *,
-    cost_center_id: int,
-    date_product_map: dict[date, set[int]],
-) -> None:
-    """
-    Rebuilds the per-day sales/loss history for the provided products based on visit snapshots.
-    """
-    if not date_product_map:
-        return
-
-    for visit_date, product_ids in date_product_map.items():
-        if visit_date is None or not product_ids:
-            continue
-        normalized_ids = sorted({int(pid) for pid in product_ids if pid is not None})
-        if not normalized_ids:
-            continue
-
-        for product_id in normalized_ids:
-            totals = (
-                db.query(
-                    func.coalesce(func.sum(InventoryVisitProduct.sales_quantity), 0).label("sales_total"),
-                    func.coalesce(func.sum(InventoryVisitProduct.loss_quantity), 0).label("loss_total"),
-                    func.max(InventoryVisit.visited_at).label("observed_at"),
-                )
-                .join(InventoryVisit, InventoryVisit.id == InventoryVisitProduct.inventory_visit_id)
-                .filter(
-                    InventoryVisit.cost_center_id == cost_center_id,
-                    InventoryVisitProduct.product_id == product_id,
-                    func.date(InventoryVisit.visited_at) == visit_date,
-                )
-                .first()
-            )
-            sales_total = int(totals.sales_total or 0) if totals else 0
-            loss_total = int(totals.loss_total or 0) if totals else 0
-            observed_at = totals.observed_at if totals else None
-
-            _set_client_sales_for_day(
-                db,
-                cost_center_id=cost_center_id,
-                product_id=product_id,
-                day=visit_date,
-                total=sales_total,
-                observed_at=observed_at,
-            )
-            _set_client_loss_for_day(
-                db,
-                cost_center_id=cost_center_id,
-                product_id=product_id,
-                day=visit_date,
-                total=loss_total,
-                observed_at=observed_at,
-            )
 
 
-def _set_client_sales_for_day(
-    db: Session,
-    *,
-    cost_center_id: int,
-    product_id: int,
-    day: date,
-    total: int,
-    observed_at: Optional[datetime],
-) -> None:
-    record = (
-        db.query(ClientSalesHistory)
-        .filter_by(cost_center_id=cost_center_id, product_id=product_id, date=day)
-        .first()
-    )
-    timestamp = observed_at or datetime.combine(day, datetime.min.time())
 
-    if not record:
-        record = ClientSalesHistory(
-            cost_center_id=cost_center_id,
-            product_id=product_id,
-            date=day,
-            sold_quantity=0,
-        )
-        db.add(record)
-    record.sold_quantity = total
-    record.observed_at = timestamp
-
-
-def _set_client_loss_for_day(
-    db: Session,
-    *,
-    cost_center_id: int,
-    product_id: int,
-    day: date,
-    total: int,
-    observed_at: Optional[datetime],
-) -> None:
-    record = (
-        db.query(ClientLossHistory)
-        .filter_by(cost_center_id=cost_center_id, product_id=product_id, date=day)
-        .first()
-    )
-    timestamp = observed_at or datetime.combine(day, datetime.min.time())
-
-    if not record:
-        record = ClientLossHistory(
-            cost_center_id=cost_center_id,
-            product_id=product_id,
-            date=day,
-            lost_quantity=0,
-        )
-        db.add(record)
-    record.lost_quantity = total
-    record.observed_at = timestamp

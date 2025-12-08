@@ -1,5 +1,5 @@
 from typing import List
-from pytest import Session
+from sqlalchemy.orm import Session
 from app.models.tickets import Ticket
 
 

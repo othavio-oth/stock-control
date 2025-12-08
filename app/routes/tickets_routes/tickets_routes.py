@@ -19,7 +19,6 @@ from app.controller.tickets_controller.tickets_controller import (
 )
 from app.schemas.list_all_schemas.list_all_responses import AllTicketsResponse
 from app.schemas.products_schemas.product_price_schema import UnitPricePayload
-from app.schemas.products_schemas.sales_schemas import MultiCycleAnalysisResponse, ProductHistoryAnalysis
 from app.schemas.tickets_schemas.tickets_schemas import TicketProductUpdateDTO, TicketRegisterSales
 from app.schemas.tickets_schemas.inventory_visit_schema import (
     InventoryVisitCreate,
@@ -33,7 +32,9 @@ from app.schemas.tickets_schemas.inventory_visit_schema import (
     LastVisitNextQtyResponse,
     ReservationsResponse,
 )
-from app.service.tickets_service.ticket_recommendations_service import get_daily_sales_avg_for_last_cycles, get_daily_sales_avg_for_ticket
+
+from app.service.tickets_service.ticket_lifecycle_service import TicketLifecycleService
+from app.service.tickets_service.ticket_product_service import TicketProductService
 from app.service.tickets_service.tickets_service import TicketService
 from . import *
 from app.middleware.auth_handler import get_current_user
@@ -81,27 +82,24 @@ def search_tickets_any_route(
 @router.get("/tickets/{ticket_id}/products", include_in_schema=False)
 @router.get("/tickets/{ticket_id}/products/", response_model=List[int], tags=["Tickets"])
 def get_products_for_ticket(ticket_id: int, db: Session = Depends(get_db)):
-    return get_products_for_ticket_controller(ticket_id, db)
+    return TicketProductService.get_products_for_ticket(ticket_id, db)
 
 @router.get("/tickets/{ticket_id}/previous-approved", include_in_schema=False)
 @router.get("/tickets/{ticket_id}/previous-approved/", response_model=TicketResponse, tags=["Tickets"])
 def get_previous_approved_ticket_route(ticket_id: int, db: Session = Depends(get_db)):
     return get_previous_approved_ticket_controller(ticket_id, db)
 
-@router.get("/tickets/products", include_in_schema=False)
-@router.get("/tickets/products/", response_model=List[TicketProductResponse], tags=["Tickets"])
-def get_ticket_products_route(db: Session = Depends(get_db)):
-    return get_ticket_products_controller(db)
+
 
 @router.post("/tickets/products", include_in_schema=False)
 @router.post("/tickets/products/", response_model=TicketProductResponse, tags=["Tickets"])
 def add_product_to_ticket_route(product_data: TicketProductCreate, db: Session = Depends(get_db)):
-    return add_product_to_ticket_controller(product_data, db)
+    return TicketProductService.add_product(product_data, db)
 
 @router.delete("/tickets/products/{ticket_product_id}/", include_in_schema=False)
 @router.delete("/tickets/products/{ticket_product_id}", tags=["Tickets"])
 def remove_product_from_ticket_route(ticket_product_id: int, db: Session = Depends(get_db)):
-    return remove_product_from_ticket_controller(ticket_product_id, db)
+    return TicketProductService.remove_product( db,ticket_product_id)
 
 @router.post("/tickets/{id}/close/", include_in_schema=False)
 @router.post("/tickets/{id}/close", tags=["Tickets"])
@@ -151,31 +149,10 @@ def get_last_approved_ticket_id(
     product_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),
 ):
-    return TicketService.get_last_approved_ticket_id_service(db, cost_center_id, product_id)
+    return TicketLifecycleService.get_last_approved_ticket_id_service(db, cost_center_id, product_id)
 
  
     
-    
-@router.get("/{ticket_id}/analysis/history/", include_in_schema=False)
-@router.get("/{ticket_id}/analysis/history", response_model=MultiCycleAnalysisResponse)
-def get_analysis_history(
-    ticket_id: int,
-    max_cycles: int = Query(8, ge=1, le=50),
-    db: Session = Depends(get_db),
-    user = Depends(get_current_user),  # se houver auth
-):
-    raw = get_daily_sales_avg_for_last_cycles(db, ticket_id, max_cycles=max_cycles)
-
-    items: List[ProductHistoryAnalysis] = []
-    for product_id, cycles in raw.items():
-        # 'cycles' já é uma lista de dicts com as chaves exigidas em CycleAnalysis
-        items.append(ProductHistoryAnalysis(product_id=product_id, cycles=cycles))
-
-    return MultiCycleAnalysisResponse(
-        ticket_id=ticket_id,
-        max_cycles=max_cycles,
-        items=items
-    )
     
 
 @router.put("/{ticket_id}/products/{product_id}/", include_in_schema=False)
@@ -191,7 +168,7 @@ def update_ticket_product(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    updated = TicketService.update_ticket_product_service(
+    updated = TicketProductService.update_ticket_product_service(
         db, ticket_id=ticket_id, product_id=product_id, updates=payload.model_dump()
     )
 
