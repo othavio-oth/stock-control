@@ -28,3 +28,21 @@ class UserResponse(UserBase):
 
 class UserResponseList(UserResponse):
     roles: str
+
+
+class CurrentUserRole(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class CurrentUserResponse(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    roles: Optional[list[CurrentUserRole]] = None
+
+    class Config:
+        from_attributes = True
