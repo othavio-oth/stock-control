@@ -11,6 +11,7 @@ class InventoryVisitProductBase(BaseModel):
     stock_quantity: int = Field(ge=0)
     sales_quantity: int = Field(default=0, ge=0)
     loss_quantity: int = Field(default=0, ge=0)
+    shelf_price: Optional[float] = Field(default=None, alias="shelfPrice", serialization_alias="shelfPrice")
     next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -105,7 +106,9 @@ class ProductVisitSnapshot(BaseModel):
     quantity_ordered: Optional[int] = None
     stock_quantity: Optional[int] = None
     loss_quantity: Optional[int] = None
+    shelf_price: Optional[float] = Field(default=None, alias="shelfPrice", serialization_alias="shelfPrice")
     next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CostCenterProductVisitsResponse(BaseModel):
@@ -120,7 +123,9 @@ class VisitProductSnapshot(BaseModel):
     quantity_ordered: Optional[int] = None
     stock_quantity: Optional[int] = None
     loss_quantity: Optional[int] = None
+    shelf_price: Optional[float] = Field(default=None, alias="shelfPrice", serialization_alias="shelfPrice")
     next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class CostCenterVisitSnapshot(BaseModel):
@@ -149,6 +154,7 @@ class TicketVisitSummaryItem(BaseModel):
     order_prev: Optional[int] = None
     order_last_date: Optional[str] = None
     order_prev_date: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TicketVisitSummaryResponse(BaseModel):
@@ -159,6 +165,7 @@ class TicketVisitSummaryResponse(BaseModel):
 class LastVisitProductNextQty(BaseModel):
     product_id: int
     next_qty: Optional[int] = Field(default=None, ge=0, alias="nextQty", serialization_alias="nextQty")
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LastVisitNextQtyResponse(BaseModel):

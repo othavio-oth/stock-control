@@ -13,6 +13,7 @@ class CostCenter(Base):
     description = Column(String, nullable=True)
     sellers = relationship("Seller", back_populates="cost_center", lazy='select', cascade="all, delete-orphan") 
     stock_movements = relationship("StockMovement", back_populates="cost_center", cascade="all, delete-orphan")
+    shelf_prices = relationship("ShelfPrice", back_populates="cost_center", cascade="all, delete-orphan")
     retail_chain_id = Column(Integer, ForeignKey("retail_chains.id"), nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=True)

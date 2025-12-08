@@ -154,6 +154,7 @@ class TicketService:
                 InventoryVisitProduct.stock_quantity.label("stock_quantity"),
                 InventoryVisitProduct.loss_quantity.label("loss_quantity"),
                 InventoryVisitProduct.next_quantity.label("next_quantity"),
+                InventoryVisitProduct.shelf_price.label("shelf_price"),
                 func.coalesce(ClientSalesHistory.sold_quantity, 0).label("sales_quantity_history"),
                 func.coalesce(ClientLossHistory.lost_quantity, 0).label("loss_quantity_history"),
                 TicketProduct.quantity_ordered.label("quantity_ordered"),
@@ -416,29 +417,6 @@ class TicketService:
             raise HTTPException(status_code=404, detail="Ticket nuo encontrado")
         visits = list_inventory_visits_by_ticket(db, ticket_id)
 
-        # Evita retornar visitas registradas depois da criação do ticket
-        cutoff = None
-        if getattr(ticket, "order_date", None):
-            cutoff = datetime.combine(ticket.order_date, datetime.max.time())
-        elif getattr(ticket, "approved_at", None):
-            cutoff = ticket.approved_at
-        elif getattr(ticket, "created_at", None):
-            cutoff = ticket.created_at
-
-        if cutoff:
-            def _to_utc_naive(dt):
-                if not dt:
-                    return None
-                if dt.tzinfo:
-                    return dt.astimezone(timezone.utc).replace(tzinfo=None)
-                return dt
-
-            cutoff_norm = _to_utc_naive(cutoff)
-            visits = [
-                v for v in visits
-                if v.visited_at and _to_utc_naive(v.visited_at) and _to_utc_naive(v.visited_at) <= cutoff_norm
-            ]
-
         if TicketService._user_is_admin(db, current_user_id):
             return visits
         return [
@@ -547,6 +525,11 @@ class TicketService:
                             if getattr(visit_row, "quantity_ordered", None) is not None
                             else None
                         ),
+                        shelf_price=(
+                            float(visit_row.shelf_price)
+                            if getattr(visit_row, "shelf_price", None) is not None
+                            else None
+                        ),
                         stock_quantity=(
                             int(visit_row.stock_quantity)
                             if getattr(visit_row, "stock_quantity", None) is not None
@@ -590,25 +573,13 @@ class TicketService:
 
         visits: list[InventoryVisit] = []
         if ticket_id:
-            ticket = get_ticket_by_id(db, ticket_id)
-            if not ticket:
-                raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Ticket nao encontrado.")
-
-            cutoff = None
-            ticket_created_at = getattr(ticket, "created_at", None)
-            if ticket_created_at:
-                cutoff = ticket_created_at
-            elif getattr(ticket, "order_date", None) is not None:
-                cutoff = datetime.combine(ticket.order_date, datetime.min.time())
-
-            if cutoff is None:
-                raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Data de referencia do ticket nao encontrada.")
-
-            visits = (
-                base_query.filter(InventoryVisit.visited_at < cutoff)
-                .limit(effective_limit)
-                .all()
+            visits_query = base_query.filter(
+                InventoryVisit.ticket_id.isnot(None),
+                InventoryVisit.ticket_id <= ticket_id,
             )
+            if effective_limit > 0:
+                visits_query = visits_query.limit(effective_limit)
+            visits = visits_query.all()
         else:
             visits_query = base_query
             if effective_limit > 0:
@@ -647,6 +618,7 @@ class TicketService:
                         quantity_ordered=quantity_map.get((visit.ticket_id, product_entry.product_id)),
                         stock_quantity=product_entry.stock_quantity,
                         loss_quantity=product_entry.loss_quantity,
+                        shelf_price=float(product_entry.shelf_price) if product_entry.shelf_price is not None else None,
                         next_qty=product_entry.next_quantity,
                     )
                 )
@@ -724,7 +696,6 @@ class TicketService:
                     MAX(CASE WHEN rn = 1 THEN next_quantity END) AS next_qty,
                     MAX(CASE WHEN rn = 1 THEN quantity_ordered END) AS order_last,
                     MAX(CASE WHEN rn = 2 THEN quantity_ordered END) AS order_prev,
-                    MAX(CASE WHEN rn = 1 THEN visited_at END) AS order_last_date,
                     MAX(CASE WHEN rn = 2 THEN visited_at END) AS order_prev_date
                 FROM ranked
                 WHERE rn <= 2
@@ -740,6 +711,26 @@ class TicketService:
         ).fetchall()
 
         items = []
+        approved_tickets = (
+            db.query(Ticket)
+            .filter(
+                Ticket.cost_center_id == ticket.cost_center_id,
+                Ticket.approved_at.isnot(None),
+            )
+            .order_by(Ticket.approved_at.desc(), Ticket.id.desc())
+            .limit(2)
+            .all()
+        )
+        ticket_order_date = TicketService._date_to_str(
+            approved_tickets[0].order_date
+            or approved_tickets[0].approved_at
+            or approved_tickets[0].created_at
+        ) if approved_tickets else None
+        previous_ticket_date = TicketService._date_to_str(
+            approved_tickets[1].order_date
+            or approved_tickets[1].approved_at
+            or approved_tickets[1].created_at
+        ) if len(approved_tickets) > 1 else None
         for row in rows:
             items.append(
                 TicketVisitSummaryItem(
@@ -753,8 +744,8 @@ class TicketService:
                     next_qty=row.next_qty,
                     order_last=row.order_last,
                     order_prev=row.order_prev,
-                    order_last_date=TicketService._date_to_str(row.order_last_date),
-                    order_prev_date=TicketService._date_to_str(row.order_prev_date),
+                    order_last_date=ticket_order_date,
+                    order_prev_date=previous_ticket_date,
                 )
             )
 
@@ -873,6 +864,7 @@ class TicketService:
                         stock_quantity=product.stock_quantity,
                         sales_quantity=product.sales_quantity,
                         loss_quantity=product.loss_quantity,
+                         shelf_price=float(product.shelf_price) if product.shelf_price is not None else None,
                         next_qty=product.next_quantity,
                         previous_quantity=(
                             int(prev.previous_quantity) if prev and prev.previous_quantity is not None else None
@@ -913,20 +905,7 @@ class TicketService:
         if not ticket.products or len(ticket.products) == 0:
             raise HTTPException(status_code=400, detail="Ticket sem produtos")
 
-        # 2) Valida estoque do inventário antes de movimentar
-        insuficientes = []
-        for tp in ticket.products:
-            inv = db.query(InventoryStock).filter(InventoryStock.product_id == tp.product_id).first()
-            if not inv or inv.quantity < tp.quantity_ordered:
-                insuficientes.append({"product_id": tp.product_id, "requisitado": tp.quantity_ordered, "disponivel": inv.quantity if inv else 0})
-
-        if insuficientes:
-            raise HTTPException(
-                status_code=400,
-                detail={"erro": "Estoque insuficiente no inventário para alguns itens", "itens": insuficientes}
-            )
-
-        # 3) Cria as movimentações TO_CLIENT (saída do inventário / entrada no cliente)
+        # 2) Cria as movimentações TO_CLIENT (saída do inventário / entrada no cliente)
         for tp in ticket.products:
             product = (
                 db.query(Product)

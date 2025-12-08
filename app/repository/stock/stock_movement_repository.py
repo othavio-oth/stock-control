@@ -54,12 +54,7 @@ def process_stock_movement(db: Session, movement: StockMovement):
         if movement.movement_type == MovementType.SUPPLIER_PURCHASE:
             supplier_stock.quantity += movement.quantity
         else:
-            # SUPPLIER_LOSS ou TO_CLIENT â†’ debita inventÃ¡rio
-            if supplier_stock.quantity < movement.quantity:
-                raise ValueError(
-                    f"Estoque do inventÃ¡rio insuficiente: "
-                    f"disp={supplier_stock.quantity}, req={movement.quantity}"
-                )
+            # SUPPLIER_LOSS ou TO_CLIENT ? debita invent?rio (permitindo saldo negativo)
             supplier_stock.quantity -= movement.quantity
 
     # -------- CLIENTE (cost center) --------

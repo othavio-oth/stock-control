@@ -1,4 +1,4 @@
-from app.routes.products_routes import category, chain_route, products_price_route, supplier_route, unit_measurement, unit_conversion, products
+from app.routes.products_routes import category, chain_route, products_price_route, shelf_price_route, supplier_route, unit_measurement, unit_conversion, products
 from app.routes.users_routes import seller, user, authentication, permissions, roles
 from app.routes.tickets_routes import cost_center, tickets_routes
 from app.routes.stock_routes import client_stock_route, stock_router
@@ -82,6 +82,11 @@ app.include_router(
 app.include_router(
     products_price_route.router,
     prefix="/products_adm/prices",
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(
+    shelf_price_route.router,
+    prefix="/products_adm/shelf-prices",
     dependencies=[Depends(get_current_user)],
 )
 app.include_router(
