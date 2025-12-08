@@ -40,6 +40,8 @@ from app.repository.tickets.tickets_repository import (
     get_previous_inventory_snapshot,
     get_previous_approved_ticket_for_cost_center,
 )
+from app.service.utils.date_utils import date_to_str
+from app.service.users_service.permission_service import PermissionService
 from app.models.tickets import Ticket, TicketProduct
 from app.schemas.tickets_schemas.tickets_schemas import TicketRegisterSales
 from app.schemas.tickets_schemas.inventory_visit_schema import (
@@ -69,169 +71,10 @@ from starlette.status import HTTP_404_NOT_FOUND
 from sqlalchemy.exc import IntegrityError
 
 class TicketService:
-    @staticmethod
-    def _user_is_admin(db: Session, user_id: Optional[int]) -> bool:
-        if not user_id:
-            return False
-        user = (
-            db.query(User)
-            .filter(User.id == user_id, User.is_active == True)
-            .first()
-        )
-        if not user:
-            return False
-        if getattr(user, "is_superuser", False):
-            return True
-        admin_role = (
-            db.query(Role)
-            .join(UserRole, UserRole.role_id == Role.id)
-            .filter(UserRole.user_id == user_id, Role.name == "admin")
-            .first()
-        )
-        return admin_role is not None
-
-    @staticmethod
-    def _date_to_str(value) -> Optional[str]:
-        if isinstance(value, datetime):
-            return value.date().isoformat()
-        if isinstance(value, date):
-            return value.isoformat()
-        if isinstance(value, str):
-            return value
-        return None
-
-    @staticmethod
-    def _build_cycle_block(visit_row) -> Optional[ProductCycleBlock]:
-        if not visit_row:
-            return None
-
-        sales_value = None
-        if hasattr(visit_row, "sales_quantity_history"):
-            sales_value = int(visit_row.sales_quantity_history)
-        elif hasattr(visit_row, "sales_quantity") and getattr(visit_row, "sales_quantity", None) is not None:
-            sales_value = int(visit_row.sales_quantity)
-
-        loss_value = None
-        if hasattr(visit_row, "loss_quantity_history"):
-            loss_value = int(visit_row.loss_quantity_history)
-        elif getattr(visit_row, "loss_quantity", None) is not None:
-            loss_value = int(visit_row.loss_quantity)
-
-        return ProductCycleBlock(
-            ticket_id=getattr(visit_row, "ticket_id", None),
-            date=TicketService._date_to_str(getattr(visit_row, "visited_at", None)),
-            ordered=(
-                int(visit_row.quantity_ordered)
-                if getattr(visit_row, "quantity_ordered", None) is not None
-                else None
-            ),
-            stock=int(visit_row.stock_quantity) if getattr(visit_row, "stock_quantity", None) is not None else None,
-            loss=loss_value,
-            sales=sales_value,
-        )
-
-    @staticmethod
-    def _collect_visits_by_product(
-        db: Session,
-        *,
-        cost_center_id: int,
-        product_ids: List[int],
-        allowed_ticket_ids: Optional[List[int]] = None,
-    ) -> dict[int, list]:
-        if not product_ids:
-            return {}
-
-        visit_rank = func.row_number().over(
-            partition_by=InventoryVisitProduct.product_id,
-            order_by=(InventoryVisit.visited_at.desc(), InventoryVisit.id.desc()),
-        ).label("visit_rank")
-
-        base_query = (
-            db.query(
-                InventoryVisitProduct.product_id.label("product_id"),
-                InventoryVisit.ticket_id.label("ticket_id"),
-                InventoryVisit.visited_at.label("visited_at"),
-                InventoryVisitProduct.stock_quantity.label("stock_quantity"),
-                InventoryVisitProduct.loss_quantity.label("loss_quantity"),
-                InventoryVisitProduct.next_quantity.label("next_quantity"),
-                InventoryVisitProduct.shelf_price.label("shelf_price"),
-                func.coalesce(ClientSalesHistory.sold_quantity, 0).label("sales_quantity_history"),
-                func.coalesce(ClientLossHistory.lost_quantity, 0).label("loss_quantity_history"),
-                TicketProduct.quantity_ordered.label("quantity_ordered"),
-                visit_rank,
-            )
-            .join(InventoryVisit, InventoryVisit.id == InventoryVisitProduct.inventory_visit_id)
-            .join(
-                TicketProduct,
-                and_(
-                    TicketProduct.ticket_id == InventoryVisit.ticket_id,
-                    TicketProduct.product_id == InventoryVisitProduct.product_id,
-                ),
-            )
-            .outerjoin(
-                ClientSalesHistory,
-                and_(
-                    ClientSalesHistory.product_id == InventoryVisitProduct.product_id,
-                    ClientSalesHistory.cost_center_id == InventoryVisit.cost_center_id,
-                    ClientSalesHistory.date == func.date(InventoryVisit.visited_at),
-                ),
-            )
-            .outerjoin(
-                ClientLossHistory,
-                and_(
-                    ClientLossHistory.product_id == InventoryVisitProduct.product_id,
-                    ClientLossHistory.cost_center_id == InventoryVisit.cost_center_id,
-                    ClientLossHistory.date == func.date(InventoryVisit.visited_at),
-                ),
-            )
-            .filter(
-                InventoryVisit.cost_center_id == cost_center_id,
-                InventoryVisitProduct.product_id.in_(product_ids),
-                or_(
-                    InventoryVisitProduct.stock_quantity.isnot(None),
-                    InventoryVisitProduct.loss_quantity.isnot(None),
-                    InventoryVisitProduct.sales_quantity.isnot(None),
-                ),
-            )
-        )
-
-        if allowed_ticket_ids:
-            base_query = base_query.filter(InventoryVisit.ticket_id.in_(allowed_ticket_ids))
-
-        visit_subquery = base_query.subquery()
-
-        visit_rows = (
-            db.query(visit_subquery)
-            .filter(visit_subquery.c.visit_rank <= 3)
-            .order_by(visit_subquery.c.product_id, visit_subquery.c.visit_rank)
-            .all()
-        )
-
-        visits_by_product: dict[int, list] = {}
-        for row in visit_rows:
-            visits_by_product.setdefault(row.product_id, []).append(row)
-        return visits_by_product
-
-    @staticmethod
-    def _get_allowed_ticket_ids(db: Session, ticket: Ticket) -> List[int]:
-        ticket_rows = (
-            db.query(Ticket.id)
-            .filter(Ticket.cost_center_id == ticket.cost_center_id)
-            .order_by(Ticket.id.desc())
-            .all()
-        )
-        ordered_ids = [row.id for row in ticket_rows]
-        if not ordered_ids:
-            return [ticket.id]
-
-        try:
-            current_index = ordered_ids.index(ticket.id)
-        except ValueError:
-            # fallback: use the newest two tickets if current ticket missing
-            return ordered_ids[:2] or [ticket.id]
-
-        allowed = ordered_ids[current_index : current_index + 2]
-        return allowed or [ticket.id]
+   
+    
+    
+   
     @staticmethod
     def list_tickets(page,db):
         return get_all_tickets(page,db)
@@ -275,7 +118,7 @@ class TicketService:
         except Exception:
             new_name = None
         if new_name:
-            # Busca outros tickets com mesmo prefixo (inclui possíveis sufixos)
+           
             others = (
                 db.query(Ticket)
                 .filter(Ticket.id != ticket_id, Ticket.name.like(f"{new_name}%"))
@@ -396,7 +239,7 @@ class TicketService:
                 raise HTTPException(status_code=400, detail="products nǜo pode ser vazio")
             product_entries = [p.model_dump() for p in visit_data.products]
 
-        is_admin = TicketService._user_is_admin(db, user_id)
+        is_admin = PermissionService.user_is_admin(db, user_id)
         return update_inventory_visit_record(
             db,
             ticket=ticket,
@@ -519,7 +362,7 @@ class TicketService:
                         name=meta.get("name"),
                         custom_id=meta.get("custom_id"),
                         ticket_id=getattr(visit_row, "ticket_id", None),
-                        visited_at=TicketService._date_to_str(getattr(visit_row, "visited_at", None)),
+                        visited_at=date_to_str(getattr(visit_row, "visited_at", None)),
                         quantity_ordered=(
                             int(visit_row.quantity_ordered)
                             if getattr(visit_row, "quantity_ordered", None) is not None
@@ -627,7 +470,7 @@ class TicketService:
                 CostCenterVisitSnapshot(
                     visit_id=visit.id,
                     ticket_id=visit.ticket_id,
-                    visited_at=TicketService._date_to_str(visit.visited_at),
+                    visited_at=date_to_str(visit.visited_at),
                     total_stock_quantity=visit.total_stock_quantity,
                     products=products_payload,
                 )
@@ -721,12 +564,12 @@ class TicketService:
             .limit(2)
             .all()
         )
-        ticket_order_date = TicketService._date_to_str(
+        ticket_order_date = date_to_str(
             approved_tickets[0].order_date
             or approved_tickets[0].approved_at
             or approved_tickets[0].created_at
         ) if approved_tickets else None
-        previous_ticket_date = TicketService._date_to_str(
+        previous_ticket_date = date_to_str(
             approved_tickets[1].order_date
             or approved_tickets[1].approved_at
             or approved_tickets[1].created_at
@@ -782,7 +625,7 @@ class TicketService:
         return LastVisitNextQtyResponse(
             cost_center_id=cost_center_id,
             visit_id=visit.id,
-            visited_at=TicketService._date_to_str(visit.visited_at),
+            visited_at=date_to_str(visit.visited_at),
             products=products,
         )
 

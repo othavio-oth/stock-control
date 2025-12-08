@@ -1,3 +1,5 @@
+from typing import Optional
+from app.models.user import Role, User, UserRole
 from app.repository.users.permission_repository import PermissionRepository
 from app.schemas.users_schemas.permissions_schema import PermissionCreate, PermissionUpdate
 from sqlalchemy.orm import Session
@@ -48,3 +50,26 @@ class PermissionService:
     @staticmethod
     def get_roles_from_permissions(db: Session, permission_id: int):
         return PermissionRepository.get_roles_for_permission(db, permission_id)
+    
+    
+    @staticmethod
+    def user_is_admin(db: Session, user_id: Optional[int]) -> bool:
+        if not user_id:
+            return False
+        user = (
+            db.query(User)
+            .filter(User.id == user_id, User.is_active == True)
+            .first()
+        )
+        if not user:
+            return False
+        if getattr(user, "is_superuser", False):
+            return True
+        admin_role = (
+            db.query(Role)
+            .join(UserRole, UserRole.role_id == Role.id)
+            .filter(UserRole.user_id == user_id, Role.name == "admin")
+            .first()
+        )
+        return admin_role is not None
+
