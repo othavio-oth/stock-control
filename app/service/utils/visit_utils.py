@@ -9,7 +9,7 @@ from app.schemas.tickets_schemas.inventory_visit_schema import ProductCycleBlock
 from app.service.tickets_service.tickets_service import TicketService
 
 
-def _build_cycle_block(visit_row) -> Optional[ProductCycleBlock]:
+def build_cycle_block(visit_row) -> Optional[ProductCycleBlock]:
         if not visit_row:
             return None
 
@@ -40,7 +40,7 @@ def _build_cycle_block(visit_row) -> Optional[ProductCycleBlock]:
 
 
 
-def _collect_visits_by_product(
+def collect_visits_by_product(
         db: Session,
         *,
         cost_center_id: int,

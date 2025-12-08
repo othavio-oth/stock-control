@@ -70,6 +70,9 @@ from fastapi import HTTPException
 from starlette.status import HTTP_404_NOT_FOUND
 from sqlalchemy.exc import IntegrityError
 
+from app.service.utils.ticket_utils import get_allowed_ticket_ids
+from app.service.utils.visit_utils import build_cycle_block, collect_visits_by_product
+
 class TicketService:
    
     
@@ -274,11 +277,11 @@ class TicketService:
             raise HTTPException(status_code=404, detail="Ticket nuo encontrado")
 
         product_ids = list({tp.product_id for tp in ticket.products})
-        visits_by_product = TicketService._collect_visits_by_product(
+        visits_by_product = collect_visits_by_product(
             db,
             cost_center_id=ticket.cost_center_id,
             product_ids=product_ids,
-            allowed_ticket_ids=TicketService._get_allowed_ticket_ids(db, ticket),
+            allowed_ticket_ids=get_allowed_ticket_ids(db, ticket),
         )
         seen_products: set[int] = set()
         products_payload: list[ProductCycleTimelineResponse] = []
@@ -289,9 +292,9 @@ class TicketService:
 
             visit_entries = visits_by_product.get(tp.product_id, [])
 
-            current_block = TicketService._build_cycle_block(visit_entries[0]) if len(visit_entries) > 0 else None
-            previous_block = TicketService._build_cycle_block(visit_entries[1]) if len(visit_entries) > 1 else None
-            previous2_block = TicketService._build_cycle_block(visit_entries[2]) if len(visit_entries) > 2 else None
+            current_block = build_cycle_block(visit_entries[0]) if len(visit_entries) > 0 else None
+            previous_block = build_cycle_block(visit_entries[1]) if len(visit_entries) > 1 else None
+            previous2_block = build_cycle_block(visit_entries[2]) if len(visit_entries) > 2 else None
 
             products_payload.append(
                 ProductCycleTimelineResponse(
@@ -346,7 +349,7 @@ class TicketService:
         if not product_meta:
             return CostCenterProductVisitsResponse(cost_center_id=cost_center_id, visits=[])
 
-        visits_by_product = TicketService._collect_visits_by_product(
+        visits_by_product = collect_visits_by_product(
             db,
             cost_center_id=cost_center_id,
             product_ids=list(product_meta.keys()),

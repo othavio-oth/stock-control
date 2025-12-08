@@ -3,7 +3,7 @@ from pytest import Session
 from app.models.tickets import Ticket
 
 
-def _get_allowed_ticket_ids(db: Session, ticket: Ticket) -> List[int]:
+def get_allowed_ticket_ids(db: Session, ticket: Ticket) -> List[int]:
         ticket_rows = (
             db.query(Ticket.id)
             .filter(Ticket.cost_center_id == ticket.cost_center_id)
