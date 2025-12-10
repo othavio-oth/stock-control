@@ -145,6 +145,7 @@ class InventoryVisitProduct(Base):
     )
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     stock_quantity = Column(Integer, nullable=False)
+    previous_client_stock = Column(Integer, nullable=True)
     sales_quantity = Column(Integer, nullable=False, default=0)
     loss_quantity = Column(Integer, nullable=False, default=0)
     next_quantity = Column(Integer, nullable=True)

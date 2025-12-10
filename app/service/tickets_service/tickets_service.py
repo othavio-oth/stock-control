@@ -234,7 +234,7 @@ class TicketService:
             raise HTTPException(status_code=404, detail="Ticket nuo encontrado")
         visits = list_inventory_visits_by_ticket(db, ticket_id)
 
-        if TicketService._user_is_admin(db, current_user_id):
+        if PermissionService.user_is_admin(db, current_user_id):
             return visits
         return [
             visit for visit in visits
@@ -301,6 +301,9 @@ class TicketService:
                     InventoryVisitProductWithHistoryResponse(
                         product_id=product.product_id,
                         stock_quantity=product.stock_quantity,
+                        previous_client_stock=int(product.previous_client_stock)
+                        if product.previous_client_stock is not None
+                        else None,
                         sales_quantity=product.sales_quantity,
                         loss_quantity=product.loss_quantity,
                          shelf_price=float(product.shelf_price) if product.shelf_price is not None else None,

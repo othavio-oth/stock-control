@@ -9,6 +9,12 @@ from app.schemas.tickets_schemas.cost_center_schemas import CostCenterResponse
 class InventoryVisitProductBase(BaseModel):
     product_id: int
     stock_quantity: int = Field(ge=0)
+    previous_client_stock: Optional[int] = Field(
+        default=None,
+        ge=0,
+        alias="previousClientStock",
+        serialization_alias="previousClientStock",
+    )
     sales_quantity: int = Field(default=0, ge=0)
     loss_quantity: int = Field(default=0, ge=0)
     shelf_price: Optional[float] = Field(default=None, alias="shelfPrice", serialization_alias="shelfPrice")

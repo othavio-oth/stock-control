@@ -135,10 +135,9 @@ def approve_ticket_endpoint(ticket_id: int, db: Session = Depends(get_db)):
     Aprova o ticket e transfere o estoque do inventário para o cliente.
     """
     try:
-        ticket = TicketService.approve_ticket(ticket_id, db)
+        ticket = TicketLifecycleService.approve_ticket(ticket_id, db)
         return ticket  # Se tiver um schema pydantic, você pode usar response_model aqui
-    except HTTPException as e:
-        raise e
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao aprovar ticket: {str(e)}")
     
