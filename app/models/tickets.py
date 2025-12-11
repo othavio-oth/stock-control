@@ -30,7 +30,7 @@ class TicketProduct(Base):
     id = Column(Integer, primary_key=True, index=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    quantity_ordered = Column(Integer, nullable=False)
+    sent_quantity = Column(Integer, nullable=False)
     unit_price = Column(Numeric(10, 2))
     entry_price = Column(Numeric(10, 2))
     ticket = relationship("Ticket", back_populates="products")

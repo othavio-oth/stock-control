@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 
 from app.schemas.tickets_schemas.cost_center_schemas import CostCenterResponse
 
@@ -14,6 +14,12 @@ class InventoryVisitProductBase(BaseModel):
         ge=0,
         alias="previousClientStock",
         serialization_alias="previousClientStock",
+    )
+    requested_quantity: Optional[int] = Field(
+        default=None,
+        ge=0,
+        alias="requestedQuantity",
+        serialization_alias="requestedQuantity",
     )
     sales_quantity: int = Field(default=0, ge=0)
     loss_quantity: int = Field(default=0, ge=0)
@@ -109,7 +115,17 @@ class ProductVisitSnapshot(BaseModel):
     custom_id: Optional[str] = None
     ticket_id: Optional[int] = None
     visited_at: Optional[str] = None
-    quantity_ordered: Optional[int] = None
+    sent_quantity: Optional[int] = Field(
+        default=None,
+        alias="sentQuantity",
+        serialization_alias="sentQuantity",
+        validation_alias=AliasChoices("sentQuantity", "quantityOrdered", "quantity_ordered"),
+    )
+    requested_quantity: Optional[int] = Field(
+        default=None,
+        alias="requestedQuantity",
+        serialization_alias="requestedQuantity",
+    )
     stock_quantity: Optional[int] = None
     loss_quantity: Optional[int] = None
     shelf_price: Optional[float] = Field(default=None, alias="shelfPrice", serialization_alias="shelfPrice")
@@ -126,7 +142,17 @@ class VisitProductSnapshot(BaseModel):
     product_id: int
     name: Optional[str] = None
     custom_id: Optional[str] = None
-    quantity_ordered: Optional[int] = None
+    sent_quantity: Optional[int] = Field(
+        default=None,
+        alias="sentQuantity",
+        serialization_alias="sentQuantity",
+        validation_alias=AliasChoices("sentQuantity", "quantityOrdered", "quantity_ordered"),
+    )
+    requested_quantity: Optional[int] = Field(
+        default=None,
+        alias="requestedQuantity",
+        serialization_alias="requestedQuantity",
+    )
     stock_quantity: Optional[int] = None
     loss_quantity: Optional[int] = None
     shelf_price: Optional[float] = Field(default=None, alias="shelfPrice", serialization_alias="shelfPrice")

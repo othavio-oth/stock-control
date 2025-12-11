@@ -46,6 +46,8 @@ def update_ticket_product(db: Session, ticket_id: int, product_id: int, updates:
     )
     
     for key, value in updates.items():
+        if value is None:
+            continue
         if hasattr(tp, key):
             setattr(tp, key, value)
 

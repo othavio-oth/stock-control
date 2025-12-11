@@ -167,14 +167,15 @@ def update_ticket_product(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    updates = payload.model_dump(exclude_none=True)
     updated = TicketProductService.update_ticket_product_service(
-        db, ticket_id=ticket_id, product_id=product_id, updates=payload.model_dump()
+        db, ticket_id=ticket_id, product_id=product_id, updates=updates
     )
 
     return {
         "ticket_id": ticket_id,
         "product_id": product_id,
-        "quantity_ordered": int(updated.quantity_ordered),
+        "sent_quantity": int(updated.sent_quantity),
         "unit_price": str(updated.unit_price) if updated.unit_price is not None else None,
         "entry_price": str(updated.entry_price) if updated.entry_price is not None else None,
         "message": "Produto do ticket atualizado com sucesso.",

@@ -304,6 +304,7 @@ class TicketService:
                         previous_client_stock=int(product.previous_client_stock)
                         if product.previous_client_stock is not None
                         else None,
+                        requested_quantity=product.requested_quantity,
                         sales_quantity=product.sales_quantity,
                         loss_quantity=product.loss_quantity,
                          shelf_price=float(product.shelf_price) if product.shelf_price is not None else None,

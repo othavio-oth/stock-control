@@ -62,6 +62,8 @@ def create_inventory_visit_record(
             product_id = int(entry["product_id"])
         except (KeyError, TypeError, ValueError):
             raise ValueError("product_entries deve conter product_id válido")
+        requested_qty_raw = entry.get("requested_quantity", entry.get("requestedQuantity"))
+        requested_qty = int(requested_qty_raw) if requested_qty_raw is not None else None
         next_qty = entry.get("next_qty", entry.get("nextQty"))
         next_qty_int = int(next_qty) if next_qty is not None else None
         shelf_price = entry.get("shelf_price", entry.get("shelfPrice"))
@@ -70,6 +72,7 @@ def create_inventory_visit_record(
             product_id=product_id,
             stock_quantity=stock_qty,
             previous_client_stock=previous_stock_map.get(product_id),
+            requested_quantity=requested_qty,
             sales_quantity=int(entry.get("sales_quantity", 0) or 0),
             loss_quantity=int(entry.get("loss_quantity", 0) or 0),
             next_quantity=next_qty_int,
@@ -140,6 +143,7 @@ def update_inventory_visit_record(
     previous_visit_date = visit.visited_at.date()
     previous_product_ids = {p.product_id for p in visit.products}
     existing_previous_stock = {p.product_id: p.previous_client_stock for p in visit.products}
+    existing_requested_qty = {p.product_id: p.requested_quantity for p in visit.products}
 
     if visited_at is not None:
         visit.visited_at = visited_at
@@ -169,6 +173,10 @@ def update_inventory_visit_record(
                         previous_stock = int(raw_previous)
                     except (TypeError, ValueError):
                         previous_stock = None
+            requested_qty_raw = entry.get("requested_quantity", entry.get("requestedQuantity"))
+            requested_qty = int(requested_qty_raw) if requested_qty_raw is not None else None
+            if requested_qty is None:
+                requested_qty = existing_requested_qty.get(product_id)
             next_qty = entry.get("next_qty", entry.get("nextQty"))
             next_qty_int = int(next_qty) if next_qty is not None else None
             shelf_price = entry.get("shelf_price", entry.get("shelfPrice"))
@@ -177,6 +185,7 @@ def update_inventory_visit_record(
                 product_id=product_id,
                 stock_quantity=stock_qty,
                 previous_client_stock=previous_stock,
+                requested_quantity=requested_qty,
                 sales_quantity=int(entry.get("sales_quantity", 0) or 0),
                 loss_quantity=int(entry.get("loss_quantity", 0) or 0),
                 next_quantity=next_qty_int,

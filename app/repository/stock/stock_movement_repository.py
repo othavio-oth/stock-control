@@ -243,7 +243,7 @@ def get_client_sales_and_loss_history(
                 Ticket.id.label("ticket_id"),
                 Ticket.name.label("ticket_name"),
                 Ticket.order_date.label("order_date"),
-                TicketProduct.quantity_ordered.label("quantity_ordered"),
+                TicketProduct.sent_quantity.label("sent_quantity"),
             )
             .join(TicketProduct, TicketProduct.ticket_id == Ticket.id)
             .filter(
@@ -270,7 +270,7 @@ def get_client_sales_and_loss_history(
                 combined[key]["previous_ticket_order_date"] = last_ticket.order_date
                 combined[key]["previous_ticket_name"] = last_ticket.ticket_name
                 combined[key]["previous_ticket_quantity"] = (
-                    int(last_ticket.quantity_ordered) if last_ticket.quantity_ordered is not None else None
+                    int(last_ticket.sent_quantity) if last_ticket.sent_quantity is not None else None
                 )
 
     return sorted(combined.values(), key=lambda item: (item["product_id"], item["date"]))
@@ -819,7 +819,7 @@ def get_cycle_analysis_for_cost_center(
         db.query(
             TicketProduct.ticket_id,
             TicketProduct.product_id,
-            TicketProduct.quantity_ordered,
+            TicketProduct.sent_quantity,
             Product.name,
             Product.custom_id,
         )
@@ -834,7 +834,7 @@ def get_cycle_analysis_for_cost_center(
     product_meta: Dict[int, Dict[str, Optional[str]]] = {}
     ticket_product_map: Dict[int, Dict[int, int]] = defaultdict(dict)
     for row in product_rows:
-        ticket_product_map[row.ticket_id][row.product_id] = int(row.quantity_ordered or 0)
+        ticket_product_map[row.ticket_id][row.product_id] = int(row.sent_quantity or 0)
         if row.product_id not in product_meta:
             product_meta[row.product_id] = {
                 "name": row.name,
@@ -891,7 +891,7 @@ def get_cycle_analysis_for_cost_center(
                     "order": current_order,
                     "ticket_id": ticket.id,
                     "order_date": ticket.order_date,
-                    "quantity_ordered": int(quantity),
+                    "sent_quantity": int(quantity),
                     "stock_quantity": stock_quantity,
                     "loss_quantity": loss_quantity,
                     "has_visit": has_visit,

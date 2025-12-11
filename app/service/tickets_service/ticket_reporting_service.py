@@ -126,9 +126,14 @@ class TicketReportingService:
                         custom_id=meta.get("custom_id"),
                         ticket_id=getattr(visit_row, "ticket_id", None),
                         visited_at=date_to_str(getattr(visit_row, "visited_at", None)),
-                        quantity_ordered=(
-                            int(visit_row.quantity_ordered)
-                            if getattr(visit_row, "quantity_ordered", None) is not None
+                        sent_quantity=(
+                            int(visit_row.sent_quantity)
+                            if getattr(visit_row, "sent_quantity", None) is not None
+                            else None
+                        ),
+                        requested_quantity=(
+                            int(visit_row.requested_quantity)
+                            if getattr(visit_row, "requested_quantity", None) is not None
                             else None
                         ),
                         shelf_price=(
@@ -200,7 +205,7 @@ class TicketReportingService:
             db.query(
                 TicketProduct.ticket_id.label("ticket_id"),
                 TicketProduct.product_id.label("product_id"),
-                TicketProduct.quantity_ordered.label("quantity_ordered"),
+                TicketProduct.sent_quantity.label("sent_quantity"),
             )
             .filter(TicketProduct.ticket_id.in_(ticket_ids))
             .all()
@@ -208,7 +213,7 @@ class TicketReportingService:
             else []
         )
         quantity_map = {
-            (row.ticket_id, row.product_id): int(row.quantity_ordered) if row.quantity_ordered is not None else None
+            (row.ticket_id, row.product_id): int(row.sent_quantity) if row.sent_quantity is not None else None
             for row in ticket_product_rows
         }
 
@@ -221,7 +226,8 @@ class TicketReportingService:
                         product_id=product_entry.product_id,
                         name=getattr(product_entry.product, "name", None),
                         custom_id=getattr(product_entry.product, "custom_id", None),
-                        quantity_ordered=quantity_map.get((visit.ticket_id, product_entry.product_id)),
+                        sent_quantity=quantity_map.get((visit.ticket_id, product_entry.product_id)),
+                        requested_quantity=product_entry.requested_quantity,
                         stock_quantity=product_entry.stock_quantity,
                         loss_quantity=product_entry.loss_quantity,
                         shelf_price=float(product_entry.shelf_price) if product_entry.shelf_price is not None else None,
@@ -278,7 +284,7 @@ class TicketReportingService:
                         ivp.sales_quantity,
                         ivp.stock_quantity,
                         ivp.next_quantity,
-                        tp.quantity_ordered,
+                        tp.sent_quantity,
                         ROW_NUMBER() OVER (
                             PARTITION BY ivp.product_id
                             ORDER BY iv.visited_at DESC, iv.id DESC
@@ -300,8 +306,8 @@ class TicketReportingService:
                     MAX(CASE WHEN rn = 1 THEN stock_quantity END) AS stock_last,
                     MAX(CASE WHEN rn = 2 THEN stock_quantity END) AS stock_prev,
                     MAX(CASE WHEN rn = 1 THEN next_quantity END) AS next_qty,
-                    MAX(CASE WHEN rn = 1 THEN quantity_ordered END) AS order_last,
-                    MAX(CASE WHEN rn = 2 THEN quantity_ordered END) AS order_prev,
+                    MAX(CASE WHEN rn = 1 THEN sent_quantity END) AS order_last,
+                    MAX(CASE WHEN rn = 2 THEN sent_quantity END) AS order_prev,
                     MAX(CASE WHEN rn = 2 THEN visited_at END) AS order_prev_date
                 FROM ranked
                 WHERE rn <= 2
@@ -369,7 +375,7 @@ class TicketReportingService:
                 TicketProduct.product_id.label("product_id"),
                 TicketProduct.ticket_id.label("ticket_id"),
                 Ticket.cost_center_id.label("cost_center_id"),
-                TicketProduct.quantity_ordered.label("quantity"),
+                TicketProduct.sent_quantity.label("quantity"),
             )
             .join(Ticket, TicketProduct.ticket_id == Ticket.id)
             .filter(Ticket.status.in_(statuses))

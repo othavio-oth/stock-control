@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 from typing import Dict, Literal, Optional, List
 from datetime import date, datetime
 
@@ -155,7 +155,11 @@ class ClientSalesUpdateResult(BaseModel):
 class CycleAnalysisCycleRead(BaseModel):
     order: int
     ticket_id: int
-    quantity_ordered: int
+    sent_quantity: int = Field(
+        alias="sentQuantity",
+        serialization_alias="sentQuantity",
+        validation_alias=AliasChoices("sentQuantity", "quantityOrdered", "quantity_ordered"),
+    )
     stock_quantity: Optional[int] = None
     loss_quantity: Optional[int] = None
     date: Optional[datetime] = None

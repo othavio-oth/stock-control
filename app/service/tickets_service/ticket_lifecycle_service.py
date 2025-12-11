@@ -43,7 +43,7 @@ class TicketLifecycleService:
 
             movement = StockMovement(
                 product_id=tp.product_id,
-                quantity=tp.quantity_ordered,
+                quantity=tp.sent_quantity,
                 movement_type=MovementType.TO_CLIENT,      
                 cost_center_id=ticket.cost_center_id,
                 product_unit_cost=(product.current_cost if product.current_cost is not None else None),

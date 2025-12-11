@@ -83,7 +83,7 @@ def create_ticket(db: Session, ticket_data):
         tp = TicketProduct(
             ticket_id=ticket.id,
             product_id=itd["product_id"],
-            quantity_ordered=itd["quantity_ordered"],  # alias 'quantity' já resolvido no schema
+            sent_quantity=itd.get("sent_quantity", itd.get("quantity_ordered")),  # alias resolved in schema
             unit_price=itd.get("unit_price"),
             entry_price=itd.get("entry_price"),
         )
@@ -136,7 +136,7 @@ def update_ticket(db, ticket_id, ticket_data):
                 .first()
             )
             if tp:
-                for field in ("quantity_ordered", "unit_price", "entry_price"):
+                for field in ("sent_quantity", "unit_price", "entry_price"):
                     if field in item and item[field] is not None:
                         setattr(tp, field, item[field])
             else:
@@ -144,7 +144,7 @@ def update_ticket(db, ticket_id, ticket_data):
                     TicketProduct(
                         ticket_id=ticket_id,
                         product_id=product_id,
-                        quantity_ordered=item.get("quantity_ordered", 0),
+                        sent_quantity=item.get("sent_quantity", item.get("quantity_ordered", 0)),
                         unit_price=item.get("unit_price"),
                         entry_price=item.get("entry_price"),
                     )
@@ -299,7 +299,6 @@ def create_next_cycle_ticket(db: Session, base_ticket: Ticket, name: str | None 
     db.commit()
     db.refresh(new_ticket)
     return new_ticket
-
 
 
 

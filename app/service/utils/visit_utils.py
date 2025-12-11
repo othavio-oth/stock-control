@@ -29,8 +29,8 @@ def build_cycle_block(visit_row) -> Optional[ProductCycleBlock]:
             ticket_id=getattr(visit_row, "ticket_id", None),
             date=date_to_str(getattr(visit_row, "visited_at", None)),
             ordered=(
-                int(visit_row.quantity_ordered)
-                if getattr(visit_row, "quantity_ordered", None) is not None
+                int(visit_row.sent_quantity)
+                if getattr(visit_row, "sent_quantity", None) is not None
                 else None
             ),
             stock=int(visit_row.stock_quantity) if getattr(visit_row, "stock_quantity", None) is not None else None,
@@ -62,11 +62,12 @@ def collect_visits_by_product(
                 InventoryVisit.visited_at.label("visited_at"),
                 InventoryVisitProduct.stock_quantity.label("stock_quantity"),
                 InventoryVisitProduct.loss_quantity.label("loss_quantity"),
+                InventoryVisitProduct.requested_quantity.label("requested_quantity"),
                 InventoryVisitProduct.next_quantity.label("next_quantity"),
                 InventoryVisitProduct.shelf_price.label("shelf_price"),
                 func.coalesce(ClientSalesHistory.sold_quantity, 0).label("sales_quantity_history"),
                 func.coalesce(ClientLossHistory.lost_quantity, 0).label("loss_quantity_history"),
-                TicketProduct.quantity_ordered.label("quantity_ordered"),
+                TicketProduct.sent_quantity.label("sent_quantity"),
                 visit_rank,
             )
             .join(InventoryVisit, InventoryVisit.id == InventoryVisitProduct.inventory_visit_id)
