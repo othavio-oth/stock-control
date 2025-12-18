@@ -48,18 +48,12 @@ class TicketBase(BaseModel):
 
 
 class TicketProductUpdateDTO(BaseModel):
-    sent_quantity: Optional[
-        Annotated[
-            int,
-            Field(
-                strict=True,
-                ge=0,
-                alias="sentQuantity",
-                serialization_alias="sentQuantity",
-                validation_alias=AliasChoices("sentQuantity", "quantityOrdered", "quantity_ordered"),
-            ),
-        ]
-    ] = None
+    sent_quantity: Optional[int] = Field(
+        default=None,
+        strict=True,
+        ge=0,
+        validation_alias=AliasChoices("sent_quantity", "sentQuantity", "quantityOrdered", "quantity_ordered"),
+    )
     unit_price: Optional[Annotated[Decimal, Field(max_digits=10, decimal_places=2)]] = None
     entry_price: Optional[Annotated[Decimal, Field(max_digits=10, decimal_places=2)]] = None
 
