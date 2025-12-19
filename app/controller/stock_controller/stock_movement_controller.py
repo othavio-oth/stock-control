@@ -1,3 +1,4 @@
+from app.service.stock_service.stock_entry_service import StockEntryService
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 
@@ -29,16 +30,16 @@ def reset_inventory_stock_controller(db):
 
 
 def get_product_entries_controller(db, product_id: int, page: int, page_size: int):
-    return StockMovementService.get_product_entries_service(db, product_id, page, page_size)
+    return StockEntryService.get_product_entries_service(db, product_id, page, page_size)
 
 def delete_stock_entry_controller(db: Session, movement_id: int):
-    return StockMovementService.delete_supplier_purchase_entry_service(db, movement_id)
+    return StockEntryService.delete_supplier_purchase_entry_service(db, movement_id)
 
 def update_stock_entry_controller(db: Session, movement_id: int, dto):
-    return StockMovementService.update_supplier_purchase_entry_service(db, movement_id, dto)
+    return StockEntryService.update_supplier_purchase_entry_service(db, movement_id, dto)
 
 def add_stock_bulk_controller(db: Session, bulk_dto):
-    return StockMovementService.add_stock_bulk_with_cost_average(db, bulk_dto)
+    return StockEntryService.add_stock_bulk_with_cost_average(db, bulk_dto)
 
 def get_client_sales_history_controller(
     db: Session,
