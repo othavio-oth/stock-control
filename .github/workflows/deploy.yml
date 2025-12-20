@@ -1,6 +1,6 @@
 name: CI/CD
 
-oon:
+on:
   push:
     branches: ["master", "stage"]
   workflow_dispatch: {}
