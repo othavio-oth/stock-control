@@ -9,7 +9,6 @@ from app.repository.stock.client_stock_repository import get_client_stock_by_cos
 from app.repository.stock.stock_movement_repository import (
     get_all_stock_movements,
     get_current_stock,
-    get_product_entries,
     get_client_loss_history as repo_get_client_loss_history,
     get_client_sales_and_loss_history as repo_get_client_sales_and_loss_history,
     get_daily_sales_and_loss_grouped_by_cost_center as repo_get_daily_sales_and_loss_grouped_by_cost_center,
@@ -17,14 +16,13 @@ from app.repository.stock.stock_movement_repository import (
 )
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseDTO, StockMovementRead
 from app.schemas.stock_schemas.stock_movement_schema import (
-    StockEntryRead,
     ClientSalesHistoryRead,
     ClientLossHistoryRead,
     ClientSalesLossHistoryRead,
     DailyCostCenterSalesLossGroupRead,
     CycleAnalysisProductRead,
 )
-from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
+
 from datetime import date
 
 class StockMovementService:
@@ -79,7 +77,6 @@ class StockMovementService:
             if current_cost_record:
                 current_cost_record.end_date = datetime.now()
 
-            # Novo histÃ³rico
             new_cost_record = ProductCostHistory(
                 product_id=movement.product_id,
                 cost=new_cost,
@@ -88,11 +85,9 @@ class StockMovementService:
             )
             db.add(new_cost_record)
 
-            # Atualiza estoque
             stock.quantity += movement.quantity
             db.add(stock)
 
-        # Aqui vocÃª pode tratar outros tipos de movimento
         else:
             # Delegar ao repositório para atualizar estoques/históricos
             from app.repository.stock.stock_movement_repository import process_stock_movement as _repo_process

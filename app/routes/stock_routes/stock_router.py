@@ -31,6 +31,7 @@ from app.schemas.stock_schemas.stock_movement_schema import StockEntryRead, Clie
 from app.schemas.stock_schemas.stock_movement_schema import SalesQuantityResponse
 from app.schemas.stock_schemas.stock_movement_schema import ClientSalesUpdateDTO, ClientSalesUpdateResult
 from app.schemas.stock_schemas.stock_movement_schema import SupplierPurchaseUpdateDTO, StockEntryReadWithCost, SupplierPurchaseBulkDTO
+from app.service.stock_service.stock_entry_service import StockEntryService
 from app.service.stock_service.stock_movement_service import StockMovementService
 from . import *
 router = APIRouter(redirect_slashes=False)
@@ -84,7 +85,7 @@ def reset_inventory_stock(db: Session = Depends(get_db)):
 @router.post("/add-stock/", include_in_schema=False)
 @router.post("/add-stock", response_model=StockMovementRead, status_code=status.HTTP_201_CREATED, tags=["Stock Movements"])
 def add_stock( dto:SupplierPurchaseDTO, db: Session = Depends(get_db),):
-    return StockMovementService.add_stock_with_cost_average(db, dto)
+    return StockEntryService.add_stock_with_cost_average(db, dto)
 
 @router.post("/add-stock/bulk/", include_in_schema=False)
 @router.post(
@@ -96,46 +97,6 @@ def add_stock( dto:SupplierPurchaseDTO, db: Session = Depends(get_db),):
 def add_stock_bulk(dto: SupplierPurchaseBulkDTO, db: Session = Depends(get_db)):
     return add_stock_bulk_controller(db, dto)
 
-@router.get(
-    "/client-stock/",
-    include_in_schema=False,
-)
-
-# @router.get("/stock-movements/monthly-sales-losses", 
-#            response_model=List[Dict[str, Any]], 
-#            tags=["Stock Movements"])
-# def get_monthly_stats(
-#     db: Session = Depends(get_db),
-#     year: int = None
-# ):
-#     """
-#     Endpoint para estatísticas mensais de vendas e perdas
-#     """
-#     return get_monthly_sales_losses_stats_controller(db, year)
-    
-
-# @router.get("/stock-movements/{product_id}", response_model=TotalProductStockResponse, tags=["Stock Movements"])
-# def get_stock_products(product_id: int,db: Session = Depends(get_db), ):
-#     return get_total_in_system_by_product(db, product_id)
-
-
-# @router.get("/stock-movements/cost-center/{cost_center_id}/period", response_model=List[TotalProductStockResponse], tags=["Stock Movements"])
-# def get_total_sold_by_cost_center_in_period(
-#     cost_center_id: int,
-#     start_date: datetime,
-#     end_date: datetime,
-#     db: Session = Depends(get_db),
-# ):
-#     return get_total_sold_by_cost_center_in_period_grouped_by_product(
-#         db, cost_center_id, start_date, end_date
-#     )
-    
-# @router.get("/stock-movements/cost-center/{cost_center_id}", response_model=List[TotalProductStockResponse], tags=["Stock Movements"])
-# def get_cost_center_stock(
-#     cost_center_id: int,
-#     db: Session = Depends(get_db),
-# ):
-#     return get_cost_center_stock_controller(cost_center_id, db)
 
 
 
