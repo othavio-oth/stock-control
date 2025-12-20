@@ -2,9 +2,10 @@ name: CI/CD
 
 on:
   push:
-    branches: ["master", "stage"]
+    branches:
+      - master
+      - stage
   workflow_dispatch: {}
-
 
 permissions:
   contents: read
@@ -14,6 +15,7 @@ jobs:
   build-and-deploy-prod:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,10 +27,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push (prod: latest + sha)
+      - name: Build & Push (prod)
         env:
-          IMAGE_LATEST: ghcr.io/othavio-oth/strategy:latest
-          IMAGE_SHA: ghcr.io/othavio-oth/strategy:${{ github.sha }}
+          IMAGE_LATEST: "ghcr.io/othavio-oth/strategy:latest"
+          IMAGE_SHA: "ghcr.io/othavio-oth/strategy:${{ github.sha }}"
         run: |
           docker build -t "$IMAGE_LATEST" -t "$IMAGE_SHA" .
           docker push "$IMAGE_LATEST"
@@ -51,9 +53,31 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -euo pipefail
+            set -e
             cd ${{ secrets.DEPLOY_PATH }}
-            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
             docker compose -p strategy-prod pull
-            docker compose -p strategy-prod up -d --pull always --force-recreate
+            docker compose -p strategy-prod up -d --force-recreate
             docker compose -p strategy-prod ps
+
+  build-stage:
+    if: github.ref == 'refs/heads/stage'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push (stage)
+        env:
+          IMAGE_STAGE: "ghcr.io/othavio-oth/strategy:stage"
+        run: |
+          docker build -t "$IMAGE_STAGE" .
+          docker push "$IMAGE_STAGE"
