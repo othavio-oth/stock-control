@@ -1,9 +1,10 @@
 name: CI/CD
 
-on:
+oon:
   push:
-    branches: ["master"]
+    branches: ["master", "stage"]
   workflow_dispatch: {}
+
 
 permissions:
   contents: read
