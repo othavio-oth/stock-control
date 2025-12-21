@@ -1,6 +1,6 @@
 name: CI/CD
 
-on:
+oon:
   push:
     branches:
       - master

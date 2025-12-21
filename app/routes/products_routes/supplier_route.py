@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
 from fastapi.params import Depends
-from pytest import Session
+from sqlalchemy.orm import Session
 
 from app.middleware.db import get_db
 from app.schemas.products_schemas.supplier_schema import SupplierCreate, SupplierReponse, SupplierUpdate

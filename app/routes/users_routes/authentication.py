@@ -1,7 +1,7 @@
 from app.middleware.auth_handler import verify_token
 from . import *
 from app.models.user import User
-from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
@@ -9,12 +9,19 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(redirect_slashes=False)
 
-@router.post("/login/" , include_in_schema=False)
-@router.post("/login" , tags=["Authentication"])
-def login_route(form_data: OAuth2PasswordRequestForm = Depends()):
-    # Accept Swagger's OAuth2 password flow (form-encoded)
-    credentials = {"username": form_data.username, "password": form_data.password}
-    return login(credentials)
+
+class LoginRequest(BaseModel):
+    identifier: str  # username ou email
+    password: str
+
+@router.post("/login/", include_in_schema=False)
+@router.post("/login", tags=["Authentication"])
+async def login_route(payload: LoginRequest):
+    # Accept only JSON (username/password)
+    return login({
+        "identifier": payload.identifier,
+        "password": payload.password,
+    })
 
 @router.get("/validate-token/", include_in_schema=False)
 @router.get("/validate-token", tags=["Authentication"])

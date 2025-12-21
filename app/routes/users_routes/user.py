@@ -1,6 +1,24 @@
 from . import *
+from app.middleware.permission import get_current_user
+from app.models.user import User
+from app.schemas.users_schemas.user_schema import CurrentUserResponse, CurrentUserRole
 
 router = APIRouter(redirect_slashes=False)
+
+@router.get("/me", response_model=CurrentUserResponse, tags=["Users"])
+def get_current_user_profile(current_user: User = Depends(get_current_user)):
+    roles_payload = [
+        CurrentUserRole(id=ur.role.id, name=ur.role.name)
+        for ur in (current_user.roles or [])
+        if ur.role
+    ]
+    preferred_name = current_user.full_name or current_user.nickname or current_user.username
+    return CurrentUserResponse(
+        id=current_user.id,
+        name=preferred_name or current_user.username,
+        email=current_user.email,
+        roles=roles_payload or None,
+    )
 
 @router.post("", include_in_schema=False)
 @router.post("/", response_model=UserResponse, tags=["Users"])

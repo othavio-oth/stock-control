@@ -1,4 +1,4 @@
-from pytest import Session
+from sqlalchemy.orm import Session
 
 from app.models.stockMovement import InventoryStock, MovementType, StockMovement
 

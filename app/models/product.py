@@ -15,6 +15,12 @@ class RetailChain(Base):
     price_history = relationship("ProductPriceHistory", back_populates="retail_chain",
                                  order_by="ProductPriceHistory.start_date.desc()",
                                  cascade="all, delete-orphan")
+    shelf_prices = relationship(
+        "ShelfPrice",
+        back_populates="retail_chain",
+        order_by="ShelfPrice.start_date.desc()",
+        cascade="all, delete-orphan",
+    )
 
     
 class UnitMeasurement(Base):
@@ -62,6 +68,12 @@ class Product(Base):
     price_history = relationship("ProductPriceHistory", back_populates="product",
                                  order_by="ProductPriceHistory.start_date.desc()",
                                  cascade="all, delete-orphan")
+    shelf_prices = relationship(
+        "ShelfPrice",
+        back_populates="product",
+        order_by="ShelfPrice.start_date.desc()",
+        cascade="all, delete-orphan",
+    )
     @hybrid_property
     def current_cost(self):
         
@@ -116,6 +128,34 @@ class ProductPriceHistory(Base):
     product = relationship("Product", back_populates="price_history")
     retail_chain = relationship("RetailChain")
     cost_center = relationship("CostCenter")
+
+
+class ShelfPrice(Base):
+    __tablename__ = "shelf_prices"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+
+    # Um dos dois deve ser preenchido
+    retail_chain_id = Column(Integer, ForeignKey("retail_chains.id"), nullable=True)
+    cost_center_id = Column(Integer, ForeignKey("cost_centers.id"), nullable=True)
+
+    percentage_rate = Column(Numeric(10, 4), nullable=False)
+    start_date = Column(DateTime, default=func.now())
+    end_date = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "(retail_chain_id IS NOT NULL AND cost_center_id IS NULL) OR (retail_chain_id IS NULL AND cost_center_id IS NOT NULL)",
+            name="check_shelf_price_scope",
+        ),
+        UniqueConstraint("product_id", "retail_chain_id", "start_date", name="uix_shelf_price_chain_start"),
+        UniqueConstraint("product_id", "cost_center_id", "start_date", name="uix_shelf_price_cost_center_start"),
+    )
+
+    product = relationship("Product", back_populates="shelf_prices")
+    retail_chain = relationship("RetailChain", back_populates="shelf_prices")
+    cost_center = relationship("CostCenter", back_populates="shelf_prices")
 
 
 class Supplier(Base):

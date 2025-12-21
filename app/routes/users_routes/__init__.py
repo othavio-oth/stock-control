@@ -13,7 +13,14 @@ from app.controller.users_controller.permission_controller import list_permissio
 from app.schemas.users_schemas.roles_schema import RoleResponse, RoleBase, RoleUserResponse, RoleRequest
 from app.controller.users_controller.roles_controller import list_roles, create_role, assign_role, get_role_user, edit_role, delete_role, delete_role_from_user
 
-from app.schemas.users_schemas.user_schema import UserResponse, UserUpdate, UserCreate, UserResponseList
+from app.schemas.users_schemas.user_schema import (
+    UserResponse,
+    UserUpdate,
+    UserCreate,
+    UserResponseList,
+    CurrentUserResponse,
+    CurrentUserRole,
+)
 from app.controller.users_controller.user_controller import create_user, list_users, read_user, update_user, delete_user
 
 from app.schemas.products_schemas.retail_chain_schemas import RetailChainBase, RetailChainResponse
@@ -88,6 +95,8 @@ __all__= [
     "UserUpdate",
     "UserCreate",
     "UserResponseList",
+    "CurrentUserResponse",
+    "CurrentUserRole",
     "create_user",
     "list_users",
     "read_user",

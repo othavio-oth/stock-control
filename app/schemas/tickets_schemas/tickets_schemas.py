@@ -1,12 +1,19 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 from typing import Annotated, List, Optional
 from datetime import date
+from decimal import Decimal
 
+from app.schemas.tickets_schemas.inventory_visit_schema import InventoryVisitResponse
 
 class TicketProductBase(BaseModel):
     ticket_id: Optional[int] = None
     product_id: int
-    quantity_ordered: float
+    sent_quantity: int = Field(
+        alias="sentQuantity",
+        serialization_alias="sentQuantity",
+        validation_alias=AliasChoices("sentQuantity", "quantityOrdered", "quantity_ordered"),
+        ge=0,
+    )
     unit_price: Optional[float] = None
     entry_price: Optional[float] = None
 
@@ -41,9 +48,14 @@ class TicketBase(BaseModel):
 
 
 class TicketProductUpdateDTO(BaseModel):
-    quantity_ordered: Optional[Annotated[int, Field(strict=True, ge=0)]] = None
-    unit_price: Optional[Annotated[float, Field(max_digits=10, decimal_places=2)]] = None
-    entry_price: Optional[Annotated[float, Field(max_digits=10, decimal_places=2)]] = None
+    sent_quantity: Optional[int] = Field(
+        default=None,
+        strict=True,
+        ge=0,
+        validation_alias=AliasChoices("sent_quantity", "sentQuantity", "quantityOrdered", "quantity_ordered"),
+    )
+    unit_price: Optional[Annotated[Decimal, Field(max_digits=10, decimal_places=2)]] = None
+    entry_price: Optional[Annotated[Decimal, Field(max_digits=10, decimal_places=2)]] = None
 
     def ensure_not_empty(self):
         if all(v is None for v in self.model_dump().values()):
@@ -65,6 +77,7 @@ class TicketRegisterSales(TicketBase):
 class TicketResponse(TicketBase):
     id: int
     products: List[TicketProductResponse] = []
+    inventory_visits: List[InventoryVisitResponse] = []
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 

@@ -1,10 +1,38 @@
 from fastapi import HTTPException
-from app.models.tickets import CostCenter
-from app.repository.products.products_repository import  create_product, get_all_products, search_products_by_term, update_product, delete_product, get_product_by_id
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from app.models.product import Product
+from typing import Optional
+
+from app.models.product import Product, ProductCostHistory
 from app.models.stockMovement import StockMovement, MovementType
+from app.models.tickets import CostCenter
+from app.repository.products.products_repository import (
+    create_product,
+    delete_product,
+    get_all_products,
+    get_product_by_id,
+    search_products_by_term,
+    update_product,
+)
+
 class ProductService:
+
+    @staticmethod
+    def _ensure_unique_custom_id(
+        db: Session, custom_id: Optional[int], ignore_product_id: Optional[int] = None
+    ):
+        if custom_id is None:
+            return
+
+        query = db.query(Product).filter(Product.custom_id == str(custom_id))
+        if ignore_product_id:
+            query = query.filter(Product.id != ignore_product_id)
+
+        if query.first():
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe um produto com esse custom_id.",
+            )
 
     
     @staticmethod
@@ -21,12 +49,29 @@ class ProductService:
 
     @staticmethod
     def create_product(db, product_data):
-        return create_product(db, product_data)
+        ProductService._ensure_unique_custom_id(db, product_data.custom_id)
+        try:
+            return create_product(db, product_data)
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe um produto com esse custom_id.",
+            )
 
     @staticmethod
     def edit_product(db, product_id, product_data):
-        
-        return update_product(db, product_id, product_data)
+        ProductService._ensure_unique_custom_id(
+            db, product_data.custom_id, ignore_product_id=product_id
+        )
+        try:
+            return update_product(db, product_id, product_data)
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe um produto com esse custom_id.",
+            )
 
     
     @staticmethod
@@ -80,6 +125,33 @@ class ProductService:
             "total_pages": total_pages,
             "product": product_summary,
         }
+
+    @staticmethod
+    def get_product_cost_history_service(db: Session, product_id: int):
+        product = get_product_by_id(product_id, db)
+        if not product:
+            raise HTTPException(404, "Produto não encontrado.")
+
+        q = (
+            db.query(ProductCostHistory)
+            .filter(ProductCostHistory.product_id == product_id)
+            .order_by(ProductCostHistory.start_date.desc())
+        )
+        items = q.all()
+
+        # Converte para payload serializável (custo float)
+        result = []
+        for row in items:
+            result.append(
+                {
+                    "id": row.id,
+                    "product_id": row.product_id,
+                    "cost": float(row.cost),
+                    "start_date": row.start_date,
+                    "end_date": row.end_date,
+                }
+            )
+        return result
 
 
     

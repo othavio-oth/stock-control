@@ -1,8 +1,9 @@
 from typing import Union
 from fastapi import Query
 
-from app.controller.products_controller.product_controller import get_all_products_controller, get_product, get_product_entry_history_controller,  search_products_by_term_controller
+from app.controller.products_controller.product_controller import get_all_products_controller, get_product, get_product_entry_history_controller,  search_products_by_term_controller, get_product_cost_history_controller
 from app.schemas.list_all_schemas.list_all_responses import AllEntriesProductsResponse, AllProductsResponse
+from app.schemas.products_schemas.product_cost_schema import ProductCostHistoryRead
 
 from . import *
 
@@ -51,6 +52,12 @@ def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
 @router.get("/products/{product_id}/entry-history", response_model=AllEntriesProductsResponse, tags=["Products"])
 def get_product_entry_history(product_id: int,page: int = Query(1, ge=1),db: Session = Depends(get_db)):
     return get_product_entry_history_controller(product_id,page,db)
+
+
+@router.get("/products/{product_id}/cost-history/", include_in_schema=False)
+@router.get("/products/{product_id}/cost-history", response_model=List[ProductCostHistoryRead], tags=["Products"])
+def get_product_cost_history(product_id: int, db: Session = Depends(get_db)):
+    return get_product_cost_history_controller(product_id, db)
 
 
 # @router.get("/products/{product_id}/sales", response_model=ProductSalesAnalyticsResponse, tags=["Products"])

@@ -1,9 +1,10 @@
 from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from app.models.user import User, UserRole, Permission, RolePermission, Role
 from app.middleware.db import get_db
-from app.middleware.security import oauth2_scheme
+from app.middleware.security import http_bearer
 import os
 from dotenv import load_dotenv
 
@@ -15,10 +16,11 @@ ALGORITHM = os.getenv("ALGORITHM")
 # imported from shared security module
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
     db: Session = Depends(get_db),
 ):
     try:
+        token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         sub = payload.get("sub")
         if sub is None:

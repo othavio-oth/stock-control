@@ -1,45 +1,47 @@
 services:
   strategy_db_inventory_stage:
     image: postgres:15
-    container_name: strategy_db_inventory_stage
     restart: unless-stopped
-    env_file:
-      - .env.stage
+    env_file: [.env.stage]
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: ${TZ}
-    networks:
-      - rede_strategy_inventory_stage
     volumes:
-      - postgres_data_stage:/var/lib/postgresql/data
-    ports:
-      - "5434:5432"   # expõe o banco de stage na porta 5434 do host
+    - postgres_data_stage:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 10
+    networks: [rede_strategy_inventory]
 
   strategy_backend_inventory_stage:
-    build: .
-    container_name: strategy_backend_inventory_stage
+    image: ghcr.io/othavio-oth/strategy:stage
     restart: unless-stopped
-    env_file:
-      - .env.stage
+    env_file: [.env.stage]
     ports:
-      - "127.0.0.1:8001:8000"   # a API de stage roda em outra porta
+    - "127.0.0.1:8001:8000"
+
     depends_on:
       strategy_db_inventory_stage:
-        condition: service_healthy
+         condition: service_healthy
+
     command: >
-      sh -c "uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
-    networks:
-      - rede_strategy_inventory_stage
+      sh -c "alembic upgrade head &&
+             uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8000/ping', timeout=3).getcode()==200 else sys.exit(1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+
+    networks: [rede_strategy_inventory]
 
 networks:
-  rede_strategy_inventory_stage:
+  rede_strategy_inventory:
 
 volumes:
   postgres_data_stage:

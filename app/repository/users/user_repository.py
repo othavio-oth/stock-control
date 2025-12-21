@@ -36,9 +36,10 @@ def mark_user_as_inactive(db: Session, db_user: User):
     db.refresh(db_user)
 
 def list_all_users(db: Session):
-    # Consulta com join entre User, UserRole e Role
+    # Consulta apenas usuários ativos, com join entre User, UserRole e Role
     users = (
         db.query(User)
+        .filter(User.is_active == True)
         .outerjoin(UserRole, User.id == UserRole.user_id)
         .outerjoin(Role, UserRole.role_id == Role.id)
         .all()

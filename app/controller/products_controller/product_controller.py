@@ -32,5 +32,8 @@ def get_all_products_controller(page,db):
 def get_product_entry_history_controller(product_id: int, page: int, db: Session):
     return ProductService.get_product_entry_history(product_id,page,db)
 
+def get_product_cost_history_controller(product_id: int, db: Session):
+    return ProductService.get_product_cost_history_service(db, product_id)
+
 # def get_product_sales_controller(product_id: int, cost_center_id: int, period_days: int, db: Session):
 #     return ProductService.get_product_sales(db, product_id, cost_center_id, period_days)

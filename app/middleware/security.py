@@ -1,5 +1,5 @@
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer
 
-# Single shared OAuth2 scheme for the whole app
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/authentication/login")
+# Single shared HTTP Bearer scheme for the whole app (no OAuth2 flow)
+http_bearer = HTTPBearer()
 

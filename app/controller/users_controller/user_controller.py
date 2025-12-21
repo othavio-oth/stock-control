@@ -9,7 +9,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 def list_users(db: Session = Depends(get_db)):
     try:
         result = service_list_users(db)
-        logging.info(result)
         
         return result
     except ValueError as e:
