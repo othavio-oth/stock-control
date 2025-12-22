@@ -18,7 +18,7 @@ services:
     networks: [rede_strategy_inventory]
 
   strategy_backend_inventory:
-    image: ghcr.io/othavio-oth/strategy:latest
+    image: ghcr.io/othavio-oth/strategy:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file: [.env]
     ports:
