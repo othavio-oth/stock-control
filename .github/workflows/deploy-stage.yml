@@ -30,11 +30,7 @@ jobs:
 
       - name: Build & Push STAGE
         run: |
-          docker build \
-            -f strategy_backend/Dockerfile \
-            -t ghcr.io/othavio-oth/strategy:stage \
-            strategy_backend
-
+          docker build -t ghcr.io/othavio-oth/strategy:stage .
           docker push ghcr.io/othavio-oth/strategy:stage
 
       - name: Deploy STAGE

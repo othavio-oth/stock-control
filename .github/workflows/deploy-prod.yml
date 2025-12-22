@@ -25,14 +25,8 @@ jobs:
 
       - name: Build & Push PROD
         run: |
-          docker build \
-            -f strategy_backend/Dockerfile \
-            -t ghcr.io/othavio-oth/strategy:latest \
-            -t ghcr.io/othavio-oth/strategy:${{ github.sha }} \
-            strategy_backend
-
+          docker build -t ghcr.io/othavio-oth/strategy:latest .
           docker push ghcr.io/othavio-oth/strategy:latest
-          docker push ghcr.io/othavio-oth/strategy:${{ github.sha }}
 
       - name: Deploy PROD
         uses: appleboy/ssh-action@v1.2.0
