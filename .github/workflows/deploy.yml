@@ -1,10 +1,11 @@
 name: CI/CD
 
-oon:
+on:
   push:
-    branches: ["master", "stage"]
-  workflow_dispatch: {}
-
+    branches:
+      - master
+      - stage
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +15,7 @@ jobs:
   build-and-deploy-prod:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,35 +27,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push (prod: latest + sha)
-        env:
-          IMAGE_LATEST: ghcr.io/othavio-oth/strategy:latest
-          IMAGE_SHA: ghcr.io/othavio-oth/strategy:${{ github.sha }}
+      - name: Build & Push PROD
         run: |
-          docker build -t "$IMAGE_LATEST" -t "$IMAGE_SHA" .
-          docker push "$IMAGE_LATEST"
-          docker push "$IMAGE_SHA"
+          docker build -t ghcr.io/othavio-oth/strategy:latest .
+          docker push ghcr.io/othavio-oth/strategy:latest
 
-      - name: Upload compose file to VM (PROD)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml"
-          target: "${{ secrets.DEPLOY_PATH }}"
-          overwrite: true
-
-      - name: Deploy PROD (SSH)
+      - name: Deploy PROD on VM
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -euo pipefail
-            cd ${{ secrets.DEPLOY_PATH }}
-            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            set -e
+            cd ~/strategy/strategy_backend
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
             docker compose -p strategy-prod pull
-            docker compose -p strategy-prod up -d --pull always --force-recreate
-            docker compose -p strategy-prod ps
+            docker compose -p strategy-prod up -d
+
+  deploy-stage:
+    if: github.ref == 'refs/heads/stage'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy STAGE on VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/strategy/strategy_backend_stage
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            docker compose pull
+            docker compose up -d
