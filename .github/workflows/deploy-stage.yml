@@ -42,5 +42,5 @@ jobs:
           script: |
             cd ~/strategy/strategy_backend_stage
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-            docker compose pull
-            docker compose up -d
+            docker compose -f docker-compose.stage.yml pull
+            docker compose -f docker-compose.stage.yml up -d --force-recreate
