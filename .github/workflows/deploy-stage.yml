@@ -1,0 +1,45 @@
+name: Deploy STAGE
+
+on:
+  push:
+    branches:
+      - stage
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push STAGE
+        run: |
+          docker build \
+            -f strategy_backend/Dockerfile \
+            -t ghcr.io/othavio-oth/strategy:stage \
+            strategy_backend
+
+          docker push ghcr.io/othavio-oth/strategy:stage
+
+      - name: Deploy STAGE
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/strategy/strategy_backend_stage
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            docker compose pull
+            docker compose up -d
