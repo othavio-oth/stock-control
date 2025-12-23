@@ -51,38 +51,32 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def login(data):
-    identifier = data.get('identifier') or data.get('username') or data.get('email')
-    password = data.get('password')
+def login(data, db: Session):
+    identifier = data.get("identifier") or data.get("username") or data.get("email")
+    password = data.get("password")
 
     if not identifier or not password:
         raise HTTPException(status_code=400, detail="Identifier and password are required")
 
     identifier = identifier.strip()
-    
-    engine = create_engine(DATABASE_URL)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    query = session.query(User).filter(User.is_active == True)
-    # Heurística: se parecer email, busca por email (case-insensitive), senão por username
-    looks_like_email = '@' in identifier
+
+    query = db.query(User).filter(User.is_active == True)
+
+    looks_like_email = "@" in identifier
     if looks_like_email:
         user = query.filter(func.lower(User.email) == identifier.lower()).first()
     else:
         user = query.filter(User.username == identifier).first()
 
-    if not user:
-        session.close()
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-    if not verify_password(password, user.hashed_password):
-        session.close()
+    if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    # preferir ID numérico no token
-    access_token = create_access_token(data={"sub": user.id}, expires_delta=access_token_expires)
-    session.close()
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires,
+    )
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 def decode_jwt(token: str) -> dict:

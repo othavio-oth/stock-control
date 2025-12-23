@@ -18,12 +18,17 @@ class LoginRequest(BaseModel):
 
 @router.post("/login/", include_in_schema=False)
 @router.post("/login", tags=["Authentication"])
-async def login_route(payload: LoginRequest):
-    # Accept only JSON (username/password)
-    return login({
-        "identifier": payload.identifier,
-        "password": payload.password,
-    })
+async def login_route(
+    payload: LoginRequest,
+    db: Session = Depends(get_db),
+):
+    return login(
+        {
+            "identifier": payload.identifier,
+            "password": payload.password,
+        },
+        db,
+    )
 
 @router.get("/validate-token/", include_in_schema=False)
 @router.get("/validate-token", tags=["Authentication"])
