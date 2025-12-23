@@ -52,7 +52,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return encoded_jwt
 
 def login(data):
-    identifier = data.get('identifier')
+    identifier = data.get('identifier') or data.get('username') or data.get('email')
     password = data.get('password')
 
     if not identifier or not password:

@@ -1,7 +1,7 @@
 from app.middleware.auth_handler import verify_token
 from . import *
 from app.models.user import User
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 
 logging.basicConfig(level=logging.INFO)
 
@@ -11,7 +11,9 @@ router = APIRouter(redirect_slashes=False)
 
 
 class LoginRequest(BaseModel):
-    identifier: str  # username ou email
+    identifier: str = Field(
+        validation_alias=AliasChoices("identifier", "username", "email")
+    )  # username ou email
     password: str
 
 @router.post("/login/", include_in_schema=False)
