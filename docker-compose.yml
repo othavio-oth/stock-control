@@ -43,3 +43,5 @@ networks:
 
 volumes:
   postgres_data:
+    external: true
+    name: strategy-prod_postgres_data
