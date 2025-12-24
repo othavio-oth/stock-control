@@ -17,8 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -30,7 +29,7 @@ jobs:
           docker build -t $IMAGE:latest .
           docker push $IMAGE:latest
 
-      - name: Deploy PROD (PORT-SAFE)
+      - name: Deploy PROD
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -38,15 +37,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-
             cd ~/strategy/strategy_backend_inventory
-
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-
-            docker rm -f strategy_backend || true
-            docker rm -f strategy_db || true
-
-            docker compose -p strategy-prod down
-
+            sudo fuser -k 8000/tcp || true
+            docker compose -p strategy-prod down || true
             docker compose -p strategy-prod pull
             docker compose -p strategy-prod up -d
