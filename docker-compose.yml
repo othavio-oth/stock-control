@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   strategy_db:
     image: postgres:15
@@ -13,7 +11,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: ${TZ}
     volumes:
-      - strategy-prod_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -43,5 +41,4 @@ networks:
   rede_strategy_inventory:
 
 volumes:
-  strategy-prod_postgres_data:
-    external: true
+  postgres_data:
