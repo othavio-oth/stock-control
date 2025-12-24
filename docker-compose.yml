@@ -15,8 +15,8 @@ services:
     volumes:
       - strategy-prod_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/ping || exit 1"]
+      interval: 15s
       timeout: 5s
       retries: 10
     networks:
