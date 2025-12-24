@@ -13,7 +13,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: ${TZ}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - strategy-prod_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -43,5 +43,5 @@ networks:
   rede_strategy_inventory:
 
 volumes:
-  postgres_data:
-
+  strategy-prod_postgres_data:
+    external: true
