@@ -37,9 +37,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd ~/strategy/strategy_backend_inventory
+            cd ~/apps/strategy/strategy_backend_inventory
+
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-            sudo fuser -k 8000/tcp || true
-            docker compose -p strategy-prod down || true
+
+            docker compose -p strategy-prod down
             docker compose -p strategy-prod pull
             docker compose -p strategy-prod up -d
