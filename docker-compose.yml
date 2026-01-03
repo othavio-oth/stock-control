@@ -26,7 +26,11 @@ jobs:
       - name: Build & Push Image
         run: |
           IMAGE=ghcr.io/othavio-oth/strategy
-          docker build -t $IMAGE:latest .
+          docker build \
+            -t $IMAGE:${{ github.sha }} \
+            -t $IMAGE:latest \
+            .
+          docker push $IMAGE:${{ github.sha }}
           docker push $IMAGE:latest
 
       - name: Deploy PROD
