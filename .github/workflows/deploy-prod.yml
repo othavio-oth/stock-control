@@ -44,5 +44,8 @@ jobs:
           script: |
             cd ~/strategy/strategy_backend
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+
+            export IMAGE_TAG=${{ github.sha }}
+
             docker compose -p strategy-prod pull
             docker compose -p strategy-prod up -d --force-recreate
