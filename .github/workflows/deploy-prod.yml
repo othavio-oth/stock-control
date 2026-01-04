@@ -25,15 +25,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push (commit + latest)
+      - name: Build & Push Image (SHA only)
         run: |
           IMAGE=ghcr.io/othavio-oth/strategy
-          docker build \
-            -t $IMAGE:${{ github.sha }} \
-            -t $IMAGE:latest \
-            .
+          docker build -t $IMAGE:${{ github.sha }} .
           docker push $IMAGE:${{ github.sha }}
-          docker push $IMAGE:latest
 
       - name: Deploy PROD (VM)
         uses: appleboy/ssh-action@v1.2.0
