@@ -23,7 +23,7 @@ app.router.redirect_slashes = False
 # app.add_middleware(ErrorNotifierMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://strategy-web-inventory.vercel.app", "https://strategy-web-inventory-git-master-othaviooths-projects.vercel.app", "https://strategy-web-inventory-git-preview-othaviooths-projects.vercel.app", "http://localhost:3000", "https://komerbemcrm.com.br"],
+    allow_origins=["https://strategy-web-inventory.vercel.app", "https://strategy-web-inventory-git-master-othaviooths-projects.vercel.app", "https://strategy-web-inventory-git-preview-othaviooths-projects.vercel.app", "http://localhost:3000", "https://komerbemcrm.com.br", "AAAAAEEE222EEEEEE.COM"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
