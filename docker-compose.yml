@@ -1,53 +1,44 @@
-name: Deploy PROD
+services:
+  strategy_db_inventory:
+    image: postgres:15
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - rede_strategy_inventory
 
-on:
-  push:
-    branches:
-      - master
-  workflow_dispatch:
+  strategy_backend_inventory:
+    image: ghcr.io/othavio-oth/strategy:${IMAGE_TAG}
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      strategy_db_inventory:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - rede_strategy_inventory
 
-permissions:
-  contents: read
-  packages: write
+networks:
+  rede_strategy_inventory:
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & Push Image (SHA + latest)
-        run: |
-          IMAGE=ghcr.io/othavio-oth/strategy
-          docker build \
-            -t $IMAGE:${{ github.sha }} \
-            -t $IMAGE:latest \
-            .
-          docker push $IMAGE:${{ github.sha }}
-          docker push $IMAGE:latest
-
-      - name: Deploy PROD (VM)
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-            cd ~/apps/strategy/strategy_backend_inventory
-
-            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-
-            export IMAGE_TAG=${{ github.sha }}
-
-            docker compose -p strategy-prod pull
-            docker compose -p strategy-prod up -d --force-recreate
+volumes:
+  postgres_data:
+    external: true
+    name: strategy-prod_postgres_data
