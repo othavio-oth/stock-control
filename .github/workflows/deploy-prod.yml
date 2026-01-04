@@ -46,6 +46,10 @@ jobs:
 
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
 
-            IMAGE_TAG=${{ github.sha }} docker compose -p strategy-prod down
-            IMAGE_TAG=${{ github.sha }} docker compose -p strategy-prod pull
-            IMAGE_TAG=${{ github.sha }} docker compose -p strategy-prod up -d
+            echo "IMAGE_TAG=${{ github.sha }}" > .env.ci
+            cat .env >> .env.ci
+            mv .env.ci .env
+
+            docker compose -p strategy-prod down
+            docker compose -p strategy-prod pull
+            docker compose -p strategy-prod up -d
