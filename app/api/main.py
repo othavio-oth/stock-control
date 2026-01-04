@@ -23,12 +23,11 @@ app.router.redirect_slashes = False
 # app.add_middleware(ErrorNotifierMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app|https://komerbemcrm\.com\.br",
+    allow_origins=["https://strategy-web-inventory.vercel.app", "https://strategy-web-inventory-git-master-othaviooths-projects.vercel.app", "https://strategy-web-inventory-git-preview-othaviooths-projects.vercel.app", "http://localhost:3000", "https://komerbemcrm.com.br"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # 
 app.include_router(
     user.router,
