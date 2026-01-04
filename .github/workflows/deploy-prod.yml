@@ -43,8 +43,9 @@ jobs:
           script: |
             set -e
             cd ~/apps/strategy/strategy_backend_inventory
+
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-            export IMAGE_TAG=${{ github.sha }}
-            docker compose -p strategy-prod down
-            docker compose -p strategy-prod pull
-            docker compose -p strategy-prod up -d
+
+            IMAGE_TAG=${{ github.sha }} docker compose -p strategy-prod down
+            IMAGE_TAG=${{ github.sha }} docker compose -p strategy-prod pull
+            IMAGE_TAG=${{ github.sha }} docker compose -p strategy-prod up -d
