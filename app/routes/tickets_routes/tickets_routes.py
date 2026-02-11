@@ -44,8 +44,8 @@ logger = logging.getLogger(__name__)
 
 @router.get("/tickets", include_in_schema=False)
 @router.get("/tickets/", response_model=AllTicketsResponse, tags=["Tickets"])
-def get_tickets( page: int = Query(1, ge=1),db: Session = Depends(get_db)):
-    return list_tickets(page, db)
+def get_tickets( page: int = Query(1, ge=1),db: Session = Depends(get_db), start_date: Optional[datetime] = Query(None), end_date: Optional[datetime] = Query(None)):
+    return list_tickets(page, db, start_date=start_date, end_date=end_date)
 
 @router.post("/tickets", include_in_schema=False)
 @router.post("/tickets/", response_model=TicketResponse, tags=["Tickets"])
@@ -73,9 +73,11 @@ def remove_ticket(ticket_id: int, db: Session = Depends(get_db)):
 def search_tickets_any_route(
     term: str,
     page: int = Query(1, ge=1),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None)
 ):
-    tickets = search_tickets_by_term_controller( term,page,db)
+    tickets = search_tickets_by_term_controller( term,page,db, start_date=start_date, end_date=end_date)
     return tickets
 
 
