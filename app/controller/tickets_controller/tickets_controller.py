@@ -4,8 +4,8 @@ from app.service.tickets_service.ticket_lifecycle_service import TicketLifecycle
 from app.service.tickets_service.ticket_reporting_service import TicketReportingService
 from . import *
 
-def list_tickets(page,db):
-    return TicketService.list_tickets(page,db)
+def list_tickets(page,db, start_date: str | None = None, end_date: str | None = None):
+    return TicketService.list_tickets(page,db, start_date=start_date, end_date=end_date)
 
 def create_ticket(ticket_data, db):
     import logging
@@ -26,8 +26,8 @@ def delete_ticket(ticket_id, db):
 def close_ticket_controller(id: int, db: Session = Depends(get_db)):
     return TicketService.close_ticket_and_move_stock(id, db)
 
-def search_tickets_by_term_controller(search_term,page, db):
-    return TicketService.search_tickets_by_term(search_term,page, db)
+def search_tickets_by_term_controller(search_term,page, db, start_date: str | None = None, end_date: str | None = None):
+    return TicketService.search_tickets_by_term(search_term,page, db, start_date=start_date, end_date=end_date)
 
 
 def process_sales_controller(ticket: Ticket, db: Session):

@@ -60,13 +60,9 @@ from app.service.utils.ticket_utils import get_allowed_ticket_ids
 from app.service.utils.visit_utils import build_cycle_block, collect_visits_by_product
 
 class TicketService:
-   
-    
-    
-   
     @staticmethod
-    def list_tickets(page,db):
-        return get_all_tickets(page,db)
+    def list_tickets(page,db, start_date: Optional[date] = None, end_date: Optional[date] = None):
+        return get_all_tickets(page,db, start_date=start_date, end_date=end_date)
 
     @staticmethod
     def create_ticket(db, ticket_data):
@@ -139,8 +135,8 @@ class TicketService:
 
     
     @staticmethod
-    def search_tickets_by_term( search_term,page, db):
-        return search_tickets_any( search_term,page, db)
+    def search_tickets_by_term( search_term,page, db, start_date: Optional[date] = None, end_date: Optional[date] = None):
+        return search_tickets_any( search_term,page, db, start_date=start_date, end_date=end_date)
     
     @staticmethod
     def close_ticket_and_move_stock(ticket_id, db):

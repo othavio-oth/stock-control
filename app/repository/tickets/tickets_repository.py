@@ -13,10 +13,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc, or_, and_
 
 
-def get_all_tickets(page:int,db: Session):
+def get_all_tickets(page:int, db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None):
     page_size = 20
     offset = (page - 1) * page_size
-    total = db.query(Ticket).count()
     tickets = (
         db.query(Ticket)
         .options(
@@ -26,11 +25,17 @@ def get_all_tickets(page:int,db: Session):
             .joinedload(InventoryVisitProduct.product),
             joinedload(Ticket.inventory_visits).joinedload(InventoryVisit.cost_center),
         )
-        .offset(offset)
-        .limit(page_size)
-        .all()
     )
+    
+    if start_date is not None:
+        tickets = tickets.filter(Ticket.order_date >= start_date)
+    if end_date is not None:
+        tickets = tickets.filter(Ticket.order_date <= end_date)
+    
+    total = tickets.count()
     total_pages = (total + page_size - 1) // page_size
+    
+    tickets = tickets.offset(offset).limit(page_size).all()
     return {
     "items": tickets,
     "total": total,

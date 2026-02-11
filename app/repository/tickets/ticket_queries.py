@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from operator import or_
+from sqlalchemy import or_
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -10,37 +10,44 @@ from sqlalchemy.orm import joinedload
 
 from app.models.tickets import CostCenter, Ticket, TicketProduct
 
-def search_tickets_any( search_term: str,page:int,db: Session):
+def search_tickets_any(search_term: str, page: int, db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None):
     page_size = 20
     offset = (page - 1) * page_size
     base_query = (
         db.query(Ticket)
-          .options(
-              joinedload(Ticket.products).joinedload(TicketProduct.product),
-              joinedload(Ticket.inventory_visits)
-              .joinedload(InventoryVisit.products)
-              .joinedload(InventoryVisitProduct.product),
-              joinedload(Ticket.inventory_visits).joinedload(InventoryVisit.cost_center),
-          )  # <-- aqui
-          .join(CostCenter)
-          .filter(
-              or_(
-                  Ticket.id == int(search_term) if search_term.isdigit() else False,
-                  Ticket.name.ilike(f"%{search_term}%"),
-                  CostCenter.name.ilike(f"%{search_term}%"),
-              )
-          )
+        .options(
+            joinedload(Ticket.products).joinedload(TicketProduct.product),
+            joinedload(Ticket.inventory_visits)
+            .joinedload(InventoryVisit.products)
+            .joinedload(InventoryVisitProduct.product),
+            joinedload(Ticket.inventory_visits).joinedload(InventoryVisit.cost_center),
+        )
+        .join(CostCenter)
     )
+
+    if start_date is not None:
+        base_query = base_query.filter(Ticket.order_date >= start_date)
+    if end_date is not None:
+        base_query = base_query.filter(Ticket.order_date <= end_date)
+
+    base_query = base_query.filter(
+        or_(
+            Ticket.id == int(search_term) if search_term.isdigit() else False,
+            Ticket.name.ilike(f"%{search_term}%"),
+            CostCenter.name.ilike(f"%{search_term}%"),
+        )
+    )
+
     total = base_query.count()
     total_pages = (total + page_size - 1) // page_size
 
     tickets = base_query.offset(offset).limit(page_size).all()
     return {
-    "items": tickets,
-    "from django.utils.translation import ugettext_lazy as _": total,
-    "page": page,
-    "page_size": page_size,
-    "total_pages": total_pages
+        "items": tickets,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
     }
 
 def recalculate_daily_visit_history(
