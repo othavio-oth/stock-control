@@ -30,8 +30,7 @@ services:
       strategy_db_inventory:
         condition: service_healthy
     command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+      sh -c "uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
     networks:
       - rede_strategy_inventory
 
