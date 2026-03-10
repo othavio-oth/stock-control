@@ -20,7 +20,8 @@ services:
       - rede_strategy_inventory
 
   strategy_backend_inventory:
-    image: ghcr.io/othavio-oth/strategy:${IMAGE_TAG}
+    build: .
+    container_name: strategy_backend_inventory
     restart: unless-stopped
     env_file:
       - .env
@@ -29,8 +30,6 @@ services:
     depends_on:
       strategy_db_inventory:
         condition: service_healthy
-    command: >
-      sh -c "uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
     networks:
       - rede_strategy_inventory
 
