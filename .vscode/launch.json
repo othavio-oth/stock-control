@@ -1,0 +1,19 @@
+{
+  // Configurações de debug para executar Uvicorn apontando para app.api.main:app
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Uvicorn (app.api.main)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.api.main:app",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}",
+      "jinja": true,
+      "justMyCode": false
+    }
+  ]
+}
