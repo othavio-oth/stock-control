@@ -1,3 +1,11 @@
 venv
 __pycache__/
 *.env
+
+.env.stage
+.env.stage.local
+current_particioned_data_pg_dumpall.sql
+data_backup.sql.gz
+merge_backup.sql
+postgres_*
+schema_backup.sql

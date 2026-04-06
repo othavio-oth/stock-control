@@ -28,7 +28,7 @@ echo "📦 Criando backup do PostgreSQL..."
 docker exec \
   -e PGPASSWORD="$DB_PASSWORD" \
   "$CONTAINER" \
-  psql -U "$DB_USER" -d "$DB_NAME" \
+  pg_dump -U "$DB_USER" -d "$DB_NAME" \
   > "$SQL_FILE"
 
 echo "🔐 Compactando e criptografando (RAR)..."
