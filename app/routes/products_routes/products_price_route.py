@@ -23,7 +23,7 @@ def get_current_prices_endpoint(product_id: int, db: Session = Depends(get_db)):
 @router.patch("/{price_id}/", include_in_schema=False)
 @router.patch("/{price_id}")
 def update_price_endpoint(price_id: int, data: ProductPriceHistoryUpdate, db: Session = Depends(get_db)):
-    result = ProductPriceHistoryService.update_price_servicejj(db, price_id, data)
+    result = ProductPriceHistoryService.update_price_service(db, price_id, data)
     if not result:
         raise HTTPException(status_code=404, detail="Price history not found")
     return result
