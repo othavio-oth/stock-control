@@ -6,10 +6,10 @@ set -e
 CONTAINER="strategy_backend_inventory-strategy_db_inventory-1"
 DB_USER="strategy_db_inventory"
 DB_NAME="postgre"
-DB_PASSWORD="kbkhwbveuibhv92"
+DB_PASSWORD="***"
 
 
-BOT_TOKEN="5042128403:AAFUSe9d4QBL0MSY3ERmpvjZ3KSpGhRnr0s"
+BOT_TOKEN="***"
 CHAT_ID="-5140030201"
 
 RAR_PASSWORD="OIBbfBI07fhs9s8"
